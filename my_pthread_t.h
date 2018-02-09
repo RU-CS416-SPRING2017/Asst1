@@ -18,6 +18,8 @@
 #include <stdlib.h>
 
 #include <ucontext.h>
+#include <sys/time.h>
+#include <signal.h>
 
 typedef uint my_pthread_t;
 
