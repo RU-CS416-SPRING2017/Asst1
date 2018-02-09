@@ -10,6 +10,20 @@
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+
+	ucontext_t current;
+	ucontext_t new;
+
+	void * stack = malloc(4096);
+
+	new.uc_link = &current;
+	new.uc_stack.ss_size = 4096;
+	new.uc_stack.ss_sp = stack;
+
+	getcontext(&new);
+	makecontext(&new, function, 1, arg);
+	swapcontext(&current, &new);
+	
 	return 0;
 };
 
@@ -47,3 +61,17 @@ int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	return 0;
 };
 
+// Temporyary test method.
+void test(int signum) {
+	printf("in test\n");
+}
+
+// Temporary main for testing.
+int main(int argc, char ** argv) {
+
+	my_pthread_create(NULL, NULL, test, 123);
+
+	printf("back in main\n");
+
+	return 0;
+}
