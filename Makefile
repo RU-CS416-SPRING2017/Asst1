@@ -18,4 +18,3 @@ clean:
 
 test: my_pthread_t.h my_pthread.c
 	gcc -g -Wall my_pthread.c -o test
-	
