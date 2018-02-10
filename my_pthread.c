@@ -18,7 +18,7 @@ static struct threadQueueNode * threadQueueHead = NULL;
 static struct threadQueueNode * threadQueueTail = NULL;
 
 // Enqueue <thread> onto the queue
-void enqueueThread(tcb * thread) {
+void enqueueTcb(tcb * thread) {
 
 	struct threadQueueNode * node = malloc(sizeof(struct threadQueueNode));
 	node->thread = thread;
@@ -37,7 +37,7 @@ void enqueueThread(tcb * thread) {
 }
 
 // Dequeues a thread
-tcb * dequeueThread() {
+tcb * dequeueTcb() {
 
 	if (threadQueueTail == NULL) {
 		return NULL;
@@ -51,33 +51,49 @@ tcb * dequeueThread() {
 	}
 }
 
+void schedule(int signum) {
+	printf("in schedule\n");
+}
+
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 
+	// This block only runs on the first call to
+	// my_pthread_create
 	if (!initialized) {
 
-		void * exitStack = malloc(TEMPSIZE);
+		// Make this block run once
+		initialized = 1;
 
-		exitContext.uc_stack.ss_size = TEMPSIZE;
+		// Catch itimer signal
+		signal(SIGVTALRM, schedule);
+
+		// Save pthread_exit context
+		void * exitStack = malloc(TEMP_SIZE);
+		exitContext.uc_stack.ss_size = TEMP_SIZE;
 		exitContext.uc_stack.ss_sp = exitStack;
-
 		getcontext(&exitContext);
 		makecontext(&exitContext, my_pthread_exit, 0);
 
-		initialized = 1;
+		// Start itimer
+		struct itimerval * timer = malloc(sizeof(struct itimerval));
+		timer->it_value.tv_sec = 0;
+		timer->it_value.tv_usec = CONTEXT_SWITCH_TIME;
+		timer->it_interval.tv_sec = 0;
+		timer->it_interval.tv_usec = CONTEXT_SWITCH_TIME;
+		setitimer(ITIMER_VIRTUAL, timer, NULL);
 	}
 
-	ucontext_t new;
-
-	void * threadStack = malloc(TEMPSIZE);
-
-	new.uc_link = &exitContext;
-	new.uc_stack.ss_size = TEMPSIZE;
-	new.uc_stack.ss_sp = threadStack;
-
-	getcontext(&new);
-	makecontext(&new, function, 1, arg);
-	setcontext(&new);
+	// Create tcb for new thread
+	tcb * newTcb = malloc(sizeof(tcb));
+	void * newThreadStack = malloc(TEMP_SIZE);
+	newTcb->context.uc_link = &exitContext;
+	newTcb->context.uc_stack.ss_size = TEMP_SIZE;
+	newTcb->context.uc_stack.ss_sp = newThreadStack;
+	getcontext(&(newTcb->context));
+	makecontext(&(newTcb->context), function, 1, arg);
+	newTcb->tid = &newTcb; // Tid is set to the address of <newTcb>
+	enqueueTcb(newTcb); // Save the new tcb
 	
 	return 0;
 };
@@ -90,6 +106,7 @@ int my_pthread_yield() {
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
 	printf("exited\n");
+	// while(1);
 };
 
 /* wait for thread termination */
