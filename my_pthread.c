@@ -8,21 +8,73 @@
 
 #include "my_pthread_t.h"
 
+// Checks if library is properly initialized
+char initialized = 0;
+// Exit context
+ucontext_t exitContext;
+// Head of the thread queue
+static struct threadQueueNode * threadQueueHead = NULL;
+// Tail of the thread queue
+static struct threadQueueNode * threadQueueTail = NULL;
+
+// Enqueue <thread> onto the queue
+void enqueueThread(tcb * thread) {
+
+	struct threadQueueNode * node = malloc(sizeof(struct threadQueueNode));
+	node->thread = thread;
+	node->previous = NULL;
+
+	if (threadQueueTail == NULL) {
+		node->next = NULL;
+		threadQueueHead = thread;
+		threadQueueTail = thread;
+
+	} else {
+		node->next = threadQueueHead;
+		threadQueueHead->previous = node;
+		threadQueueHead = node;
+	}
+}
+
+// Dequeues a thread
+tcb * dequeueThread() {
+
+	if (threadQueueTail == NULL) {
+		return NULL;
+
+	} else {
+		tcb * ret = threadQueueTail->thread;
+		threadQueueTail = threadQueueTail->previous;
+		return ret;
+	}
+}
+
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 
-	ucontext_t current;
+	if (!initialized) {
+
+		void * exitStack = malloc(TEMPSIZE);
+
+		exitContext.uc_stack.ss_size = TEMPSIZE;
+		exitContext.uc_stack.ss_sp = exitStack;
+
+		getcontext(&exitContext);
+		makecontext(&exitContext, my_pthread_exit, 0);
+
+		initialized = 1;
+	}
+
 	ucontext_t new;
 
-	void * stack = malloc(4096);
+	void * threadStack = malloc(TEMPSIZE);
 
-	new.uc_link = &current;
-	new.uc_stack.ss_size = 4096;
-	new.uc_stack.ss_sp = stack;
+	new.uc_link = &exitContext;
+	new.uc_stack.ss_size = TEMPSIZE;
+	new.uc_stack.ss_sp = threadStack;
 
 	getcontext(&new);
 	makecontext(&new, function, 1, arg);
-	swapcontext(&current, &new);
 	
 	return 0;
 };
@@ -60,18 +112,3 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
 	return 0;
 };
-
-// Temporyary test method.
-void test(int signum) {
-	printf("in test\n");
-}
-
-// Temporary main for testing.
-int main(int argc, char ** argv) {
-
-	my_pthread_create(NULL, NULL, test, 123);
-
-	printf("back in main\n");
-
-	return 0;
-}

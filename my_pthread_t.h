@@ -25,6 +25,8 @@ typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
 	/* add something here */
+	my_pthread_t tid;
+	ucontext_t context;
 } tcb; 
 
 /* mutex struct definition */
@@ -33,7 +35,13 @@ typedef struct my_pthread_mutex_t {
 } my_pthread_mutex_t;
 
 /* define your data structures here: */
+#define TEMPSIZE 4096
 
+struct threadQueueNode {
+	tcb * thread;
+	struct threadQueueNode * next;
+	struct threadQueueNode * previous;
+};
 // Feel free to add your own auxiliary data structures
 
 
