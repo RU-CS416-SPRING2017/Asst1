@@ -35,7 +35,8 @@ typedef struct my_pthread_mutex_t {
 } my_pthread_mutex_t;
 
 /* define your data structures here: */
-#define TEMPSIZE 4096
+#define TEMP_SIZE 4096
+#define CONTEXT_SWITCH_TIME 25 // In milliseconds
 
 struct threadQueueNode {
 	tcb * thread;
