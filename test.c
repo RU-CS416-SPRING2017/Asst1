@@ -12,5 +12,7 @@ int main(int argc, char ** argv) {
 
 	printf("back in main\n");
 
+    while(1);
+
 	return 0;
 }
