@@ -44,7 +44,9 @@ tcb * dequeueThread() {
 
 	} else {
 		tcb * ret = threadQueueTail->thread;
-		threadQueueTail = threadQueueTail->previous;
+		struct threadQueueNode * newTail = threadQueueTail->previous;
+		free(threadQueueTail);
+		threadQueueTail = newTail;
 		return ret;
 	}
 }
