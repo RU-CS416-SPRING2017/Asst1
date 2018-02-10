@@ -75,6 +75,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 	getcontext(&new);
 	makecontext(&new, function, 1, arg);
+	setcontext(&new);
 	
 	return 0;
 };
@@ -86,6 +87,7 @@ int my_pthread_yield() {
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
+	printf("exited\n");
 };
 
 /* wait for thread termination */
