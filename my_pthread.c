@@ -16,6 +16,8 @@ ucontext_t exitContext;
 static struct threadQueueNode * threadQueueHead = NULL;
 // Tail of the thread queue
 static struct threadQueueNode * threadQueueTail = NULL;
+// Checks if sheduler should be blocked
+char block = 0;
 
 // Enqueue <thread> onto the queue
 void enqueueTcb(tcb * thread) {
@@ -26,8 +28,8 @@ void enqueueTcb(tcb * thread) {
 
 	if (threadQueueTail == NULL) {
 		node->next = NULL;
-		threadQueueHead = thread;
-		threadQueueTail = thread;
+		threadQueueHead = node;
+		threadQueueTail = node;
 
 	} else {
 		node->next = threadQueueHead;
@@ -36,7 +38,8 @@ void enqueueTcb(tcb * thread) {
 	}
 }
 
-// Dequeues a thread
+// Dequeues a tcb, returns NULL if
+// no tcb
 tcb * dequeueTcb() {
 
 	if (threadQueueTail == NULL) {
@@ -52,11 +55,31 @@ tcb * dequeueTcb() {
 }
 
 void schedule(int signum) {
-	printf("in schedule\n");
+
+	// Only run if scheduler isn't blocked
+	if (!block) {
+
+		// Block the scheduler
+		block = 1;
+
+		// Get next tcb in the queue
+		tcb * nextTcb = dequeueTcb();
+
+		// Only run if there is a tcb in the queue
+		if (nextTcb != NULL) {
+			setcontext(&(nextTcb->context));
+		}
+
+		// Unblock the scheduler
+		block = 0;
+	}
 }
 
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
+
+	// Block the scheduler
+	block = 1;
 
 	// This block only runs on the first call to
 	// my_pthread_create
@@ -86,14 +109,17 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 	// Create tcb for new thread
 	tcb * newTcb = malloc(sizeof(tcb));
+	getcontext(&(newTcb->context));
 	void * newThreadStack = malloc(TEMP_SIZE);
 	newTcb->context.uc_link = &exitContext;
 	newTcb->context.uc_stack.ss_size = TEMP_SIZE;
 	newTcb->context.uc_stack.ss_sp = newThreadStack;
-	getcontext(&(newTcb->context));
 	makecontext(&(newTcb->context), function, 1, arg);
 	newTcb->tid = &newTcb; // Tid is set to the address of <newTcb>
 	enqueueTcb(newTcb); // Save the new tcb
+
+	// Unblock the scheduler
+	block = 0;
 	
 	return 0;
 };
@@ -106,7 +132,6 @@ int my_pthread_yield() {
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
 	printf("exited\n");
-	// while(1);
 };
 
 /* wait for thread termination */

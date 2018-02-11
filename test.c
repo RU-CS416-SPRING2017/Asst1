@@ -2,7 +2,7 @@
 
 // Temporyary test method.
 void test(int signum) {
-	printf("in test\n");
+	printf("in test %d\n", signum);
 }
 
 // Temporary main for testing.
