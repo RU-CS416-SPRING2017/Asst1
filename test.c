@@ -8,7 +8,11 @@ void test(int signum) {
 // Temporary main for testing.
 int main(int argc, char ** argv) {
 
-	my_pthread_create(NULL, NULL, test, 123);
+	my_pthread_create(NULL, NULL, test, 1);
+    my_pthread_create(NULL, NULL, test, 2);
+    my_pthread_create(NULL, NULL, test, 3);
+    my_pthread_create(NULL, NULL, test, 4);
+    my_pthread_create(NULL, NULL, test, 5);
 
 	printf("back in main\n");
 

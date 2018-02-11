@@ -65,13 +65,15 @@ void schedule(int signum) {
 		// Get next tcb in the queue
 		tcb * nextTcb = dequeueTcb();
 
-		// Only run if there is a tcb in the queue
+		// Switch context if there was a thread in
+		// the queue. Unblock the scheduler.
 		if (nextTcb != NULL) {
+			block = 0;
 			setcontext(&(nextTcb->context));
-		}
 
-		// Unblock the scheduler
-		block = 0;
+		} else {
+			block = 0;
+		}
 	}
 }
 
@@ -132,6 +134,7 @@ int my_pthread_yield() {
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
 	printf("exited\n");
+	while (1);
 };
 
 /* wait for thread termination */
