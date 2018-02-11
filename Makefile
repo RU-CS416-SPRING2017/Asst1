@@ -16,5 +16,5 @@ my_pthread.o: my_pthread_t.h
 clean:
 	rm -rf testfile *.o *.a
 
-test: Target test.c
-	gcc -g -Wall my_pthread.o libmy_pthread.a test.c -o test
+test: my_pthread_t.h my_pthread.c test.c
+	gcc -g -Wall my_pthread.c test.c -o test
