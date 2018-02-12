@@ -79,7 +79,7 @@ void schedule(int signum) {
 		// the queue. Unblock the scheduler.
 		if (nextTcb != NULL) {
 			block = 0;
-			setcontext(&(nextTcb->context));
+			swapcontext(&(threadQueueHead->next->thread->context), &(nextTcb->context));
 
 		} else {
 			block = 0;
