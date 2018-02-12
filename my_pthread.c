@@ -19,6 +19,14 @@ static struct threadQueueNode * threadQueueTail = NULL;
 // Checks if sheduler should be blocked
 char block = 0;
 
+// Returns the tcb with <tid>, returns NULL if it doesn't
+// exist
+tcb * getTcb(my_pthread_t tid) {
+	tcb * ret = tid;
+	if (ret->tid == tid) { return ret; }
+	else { return NULL; }
+}
+
 // Enqueue <thread> onto the queue
 void enqueueTcb(tcb * thread) {
 
@@ -134,7 +142,7 @@ int my_pthread_yield() {
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
 	printf("exited\n");
-	while (1);
+	schedule(0);
 };
 
 /* wait for thread termination */
