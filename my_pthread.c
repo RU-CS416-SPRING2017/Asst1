@@ -54,11 +54,13 @@ tcb * dequeueTcb() {
 		return NULL;
 
 	} else {
-		tcb * ret = threadQueueTail->thread;
 		struct threadQueueNode * newTail = threadQueueTail->previous;
-		free(threadQueueTail);
+		threadQueueTail->previous = NULL;
+		threadQueueTail->next = threadQueueHead;
+		threadQueueHead->previous = threadQueueTail;
+		threadQueueHead = threadQueueTail;
 		threadQueueTail = newTail;
-		return ret;
+		return threadQueueHead->thread;
 	}
 }
 
