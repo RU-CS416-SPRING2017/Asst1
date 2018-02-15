@@ -26,7 +26,20 @@ tcb * getTcb(my_pthread_t tid) {
 	if (ret->tid == tid) { return ret; }
 	else { return NULL; }
 }
-
+// Create the tcb Queue
+tcbQueue * createQueue(tcb * thread) {
+	struct threadQueueNode * node = malloc(sizeof(struct threadQueueNode));
+	node->thread = thread;
+	node->previous = NULL;
+	node->next = NULL;
+	struct threadQueue queue = malloc (sizeof(struct threadQueue));
+	queue->front = node;
+	queue->rear = node;
+	queue->size = queue->size + 1;
+}
+	
+	
+	
 // Enqueue <thread> onto the queue
 void enqueueTcb(tcb * thread) {
 
@@ -45,6 +58,25 @@ void enqueueTcb(tcb * thread) {
 		threadQueueHead = node;
 	}
 }
+void enqueueTcb(tcb * thread, tcbQueue * queue) {
+
+	struct threadQueueNode * node = malloc(sizeof(struct threadQueueNode));
+	node->thread = thread;
+	node->previous = NULL;
+
+	if (queue->size == 0) {
+		node->next = NULL;
+		queue->front = node;
+		queue->rear = node;
+		queue->size = queue->size + 1;
+
+	} else {
+		node->next = queue->rear;
+		queue->rear->previous = node;
+		queue->rear = node;
+		queue->size = queue->size + 1;
+	}
+}
 
 // Dequeues a tcb, returns NULL if
 // no tcb
@@ -61,6 +93,41 @@ tcb * dequeueTcb() {
 		threadQueueHead = threadQueueTail;
 		threadQueueTail = newTail;
 		return threadQueueHead->thread;
+	}
+}
+
+tcb * dequeueTcb(tcbQueue * queue) {
+
+	if (queue-> size == 0) {
+		return NULL;
+
+	}
+	else if(queue-> size == 1){
+		struct threadQueueNode * node = queue->front;
+		node->next = NULL;
+		node->previous = NULL;
+		queue->front = NULL;
+		queue->rear = NULL;
+		queue->size = 0;
+		return node->thread;
+	}
+	else if(queue-> size == 2){
+		struct threadQueueNode * node = queue->front;
+		node->previous->next = NULL;
+		queue->front = node->previous;
+		node->next = NULL;
+		node->previous = NULL;
+		queue->size = 1;
+		return threadQueueHead->thread;
+	}
+	else{
+		struct threadQueueNode * node = queue->front;
+		node->previous->next = NULL;
+		queue->front = node->previous;
+		node->next = NULL;
+		node->previous = NULL;
+		queue->size = queue->size - 1;
+		return node->thread;
 	}
 }
 
