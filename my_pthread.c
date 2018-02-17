@@ -18,6 +18,8 @@ static struct threadQueueNode * threadQueueHead = NULL;
 static struct threadQueueNode * threadQueueTail = NULL;
 // Checks if sheduler should be blocked
 char block = 0;
+// Pointer to the currently running thread's tcb
+tcb * currentTcb = NULL;
 
 // Returns the tcb with <tid>, returns NULL if it doesn't
 // exist
@@ -78,9 +80,23 @@ void schedule(int signum) {
 		// Switch context if there was a thread in
 		// the queue. Unblock the scheduler.
 		if (nextTcb != NULL) {
-			block = 0;
-			swapcontext(&(threadQueueHead->next->thread->context), &(nextTcb->context));
+			tcb * previousTcb = currentTcb;
+			currentTcb = nextTcb;
+			
+			// If <previousTcb> is NULL then setcontext
+			// else swapcontext
+			if (previousTcb == NULL) { 
+				tcb * curr = malloc(sizeof(tcb));
+				enqueueTcb(curr);
+				block = 0;
+				swapcontext(&(curr->context), &(nextTcb->context));
+				curr->context.uc_link = &exitContext;
 
+			} else {
+				block = 0;
+				swapcontext(&(previousTcb->context), &(nextTcb->context));
+			}
+			
 		} else {
 			block = 0;
 		}
@@ -143,7 +159,9 @@ int my_pthread_yield() {
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
-	printf("exited\n");
+	block = 1;
+	currentTcb = NULL;
+	block = 0;
 	schedule(0);
 };
 
