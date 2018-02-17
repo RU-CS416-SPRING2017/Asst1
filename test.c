@@ -2,20 +2,52 @@
 
 // Temporyary test method.
 void test(int signum) {
-	printf("in test %d, %d\n", signum, signum * 1);
-    printf("in test %d, %d\n", signum, signum * 2);
-    printf("in test %d, %d\n", signum, signum * 3);
-    printf("in test %d, %d\n", signum, signum * 4);
     int i;
     for (i = 0; i < 999999; i++) {
         int l = (((i+1) *32)/65)*(((i+1) *32)/65);
         // printf("%d ", l);
     }
-    printf("in test %d, %d\n", signum, signum * 5);
-    printf("in test %d, %d\n", signum, signum * 6);
-    printf("in test %d, %d\n", signum, signum * 7);
-    printf("in test %d, %d\n", signum, signum * 8);
-    printf("in test %d, %d\n", signum, signum * 9);
+	printf("in test %d, %d\n", signum, 1);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", l);
+    }
+    printf("in test %d, %d\n", signum, 2);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", l);
+    }
+    printf("in test %d, %d\n", signum, 3);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", l);
+    }
+    printf("in test %d, %d\n", signum, 4);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", l);
+    }
+    printf("in test %d, %d\n", signum, 5);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", l);
+    }
+    printf("in test %d, %d\n", signum, 6);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", l);
+    }
+    printf("in test %d, %d\n", signum, 7);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", l);
+    }
+    printf("in test %d, %d\n", signum, 8);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", l);
+    }
+    printf("in test %d, %d\n", signum, 9);
 }
 
 // Temporary main for testing.
