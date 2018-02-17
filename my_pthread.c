@@ -110,6 +110,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	// exitContext
 	if (!initialized) {
 
+		initialized = 1;
+
 		// Catch itimer signal
 		signal(SIGVTALRM, schedule);
 
@@ -127,6 +129,9 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		timer->it_interval.tv_sec = 0;
 		timer->it_interval.tv_usec = CONTEXT_SWITCH_TIME;
 		setitimer(ITIMER_VIRTUAL, timer, NULL);
+
+		// Allocating space for the first calling function
+		currentTcb = malloc(sizeof(tcb));
 	}
 
 	// Create tcb for new thread
@@ -139,20 +144,6 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	makecontext(&(newTcb->context), function, 1, arg);
 	newTcb->tid = &newTcb; // Tid is set to the address of <newTcb>
 	enqueueTcb(newTcb); // Save the new tcb
-
-	// This block only runs on the first call to
-	// my_pthread_create capturing the mainContext,
-	// starting the scheduler, and making setting
-	// initialized
-	if (!initialized) {
-		initialized = 1;
-		tcb * mainTcb = malloc(sizeof(tcb));
-		getcontext(&(mainTcb->context));
-		void * mainStack = malloc(TEMP_SIZE);
-		enqueueTcb(mainTcb);
-		block = 0;
-		schedule(0);
-	}
 
 	// Unblock the scheduler
 	block = 0;
