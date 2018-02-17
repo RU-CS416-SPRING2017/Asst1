@@ -81,20 +81,18 @@ void schedule(int signum) {
 			tcb * previousTcb = currentTcb;
 			currentTcb = nextTcb;
 			
-			// If <previousTcb> is NULL then setcontext
-			// else swapcontext
+			// If <previousTcb> is NULL then setcontext to the
+			// <newTcb>, else swap it with <previousTcb>
 			if (previousTcb == NULL) { 
-				tcb * curr = malloc(sizeof(tcb));
-				enqueueTcb(curr);
 				block = 0;
-				swapcontext(&(curr->context), &(nextTcb->context));
-				curr->context.uc_link = &exitContext;
+				setcontext(&(nextTcb->context));
 
 			} else {
+				enqueueTcb(previousTcb);
 				block = 0;
 				swapcontext(&(previousTcb->context), &(nextTcb->context));
 			}
-			
+	
 		} else {
 			block = 0;
 		}
@@ -108,11 +106,9 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	block = 1;
 
 	// This block only runs on the first call to
-	// my_pthread_create
+	// my_pthread_create, setting the itimer and
+	// exitContext
 	if (!initialized) {
-
-		// Make this block run once
-		initialized = 1;
 
 		// Catch itimer signal
 		signal(SIGVTALRM, schedule);
@@ -143,6 +139,20 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	makecontext(&(newTcb->context), function, 1, arg);
 	newTcb->tid = &newTcb; // Tid is set to the address of <newTcb>
 	enqueueTcb(newTcb); // Save the new tcb
+
+	// This block only runs on the first call to
+	// my_pthread_create capturing the mainContext,
+	// starting the scheduler, and making setting
+	// initialized
+	if (!initialized) {
+		initialized = 1;
+		tcb * mainTcb = malloc(sizeof(tcb));
+		getcontext(&(mainTcb->context));
+		void * mainStack = malloc(TEMP_SIZE);
+		enqueueTcb(mainTcb);
+		block = 0;
+		schedule(0);
+	}
 
 	// Unblock the scheduler
 	block = 0;
