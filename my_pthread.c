@@ -183,8 +183,6 @@ void ass() {
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
-	block = 1;
-
 	void * ts = malloc(TEMP_SIZE);
 	tcb * temp = malloc(sizeof(tcb));
 	temp->context.uc_stack.ss_size = TEMP_SIZE;
@@ -198,13 +196,10 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 		joining->waiter = currentTcb;
 		tcb * i = dequeueTcb(&hpq);
 		currentTcb = i;
-		block = 0;
 		swapcontext(&(joining->waiter->context), &(i->context));
 	}
-	// schedule(0);
 
-	// *value_ptr = joining->retVal;
-	// block = 0;
+	if (value_ptr != NULL) { *value_ptr = joining->retVal; }
 
 	return 0;
 };
