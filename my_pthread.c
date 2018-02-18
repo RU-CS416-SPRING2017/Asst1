@@ -134,18 +134,22 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 	// Create tcb for new thread
 	tcb * newTcb = malloc(sizeof(tcb));
+	newTcb->done = 0;
+	newTcb->retVal = NULL;
+	newTcb->waiter = NULL;
 	getcontext(&(newTcb->context));
 	void * newThreadStack = malloc(TEMP_SIZE);
 	newTcb->context.uc_link = &exitContext;
 	newTcb->context.uc_stack.ss_size = TEMP_SIZE;
 	newTcb->context.uc_stack.ss_sp = newThreadStack;
 	makecontext(&(newTcb->context), function, 1, arg);
-	newTcb->tid = &newTcb; // Tid is set to the address of <newTcb>
+	newTcb->tid = newTcb; // Tid is set to the address of <newTcb>
+	*thread = newTcb;
 	enqueueTcb(newTcb, &hpq); // Save the new tcb
 
 	// Unblock the scheduler
 	block = 0;
-	
+	schedule(1);
 	return 0;
 };
 
@@ -156,14 +160,39 @@ int my_pthread_yield() {
 
 /* terminate a thread */
 void my_pthread_exit(void *value_ptr) {
+
 	block = 1;
+
+	currentTcb->done = 1;
+	currentTcb->retVal = value_ptr;
+
+	if (currentTcb->waiter != NULL) {
+		enqueueTcb(currentTcb->waiter, &hpq);
+	}
+
 	currentTcb = NULL;
+
 	block = 0;
 	schedule(0);
 };
 
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
+
+	block = 1;
+
+	tcb * joining = thread;
+
+	if (!(joining->done)) {
+		joining->waiter = currentTcb;
+		currentTcb = NULL;
+		block = 0;
+	}
+	schedule(0);
+
+	*value_ptr = joining->retVal;
+	block = 0;
+
 	return 0;
 };
 

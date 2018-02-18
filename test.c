@@ -48,24 +48,30 @@ void test(int signum) {
         // printf("%d ", l);
     }
     printf("in test %d, %d\n", signum, 9);
+
+    my_pthread_exit(NULL);
 }
 
 // Temporary main for testing.
 int main(int argc, char ** argv) {
 
-	my_pthread_create(NULL, NULL, test, 1);
+    my_pthread_t thread;
+
+	my_pthread_create(&thread, NULL, test, 1);
     printf("1\n");
-    my_pthread_create(NULL, NULL, test, 2);
+    my_pthread_create(&thread, NULL, test, 2);
     printf("2\n");
-    my_pthread_create(NULL, NULL, test, 3);
+    my_pthread_create(&thread, NULL, test, 3);
     printf("3\n");
-    my_pthread_create(NULL, NULL, test, 4);
+    my_pthread_create(&thread, NULL, test, 4);
     printf("4\n");
-    my_pthread_create(NULL, NULL, test, 5);
+    my_pthread_create(&thread, NULL, test, 5);
 
 	printf("back in main\n");
 
-    while(1);
+    my_pthread_join(thread, NULL);
+
+    printf("joined!\n");
 
 	return 0;
 }

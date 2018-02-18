@@ -27,6 +27,9 @@ typedef struct threadControlBlock {
 	/* add something here */
 	my_pthread_t tid;
 	ucontext_t context;
+	char done;
+	void * retVal;
+	struct threadControlBlock * waiter;
 } tcb; 
 
 /* mutex struct definition */
