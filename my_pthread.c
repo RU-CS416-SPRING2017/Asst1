@@ -19,12 +19,14 @@ tcb * currentTcb = NULL;
 // High priority queue
 struct tcbQueue hpq = { NULL, NULL };
 
-// Returns the tcb with <tid>, returns NULL if it doesn't
-// exist
-tcb * getTcb(my_pthread_t tid) {
-	tcb * ret = tid;
-	if (ret->tid == tid) { return ret; }
-	else { return NULL; }
+// Initializes a tcb, the context further
+// be defined
+tcb * initializeTcb() {
+	tcb * ret = malloc(sizeof(tcb));
+	ret->done = 0;
+	ret->retVal = NULL;
+	ret->waiter = NULL;
+	return ret;
 }
 
 // Enqueue <thread> onto the queue
@@ -100,7 +102,6 @@ void schedule(int signum) {
 /* create a new thread */
 int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*function)(void*), void * arg) {
 
-	// Block the scheduler
 	block = 1;
 
 	// This block only runs on the first call to
@@ -114,11 +115,12 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		signal(SIGVTALRM, schedule);
 
 		// Save pthread_exit context
+		getcontext(&exitContext);
 		void * exitStack = malloc(TEMP_SIZE);
+		exitContext.uc_link = NULL;
 		exitContext.uc_stack.ss_size = TEMP_SIZE;
 		exitContext.uc_stack.ss_sp = exitStack;
-		getcontext(&exitContext);
-		makecontext(&exitContext, my_pthread_exit, 0);
+		makecontext(&exitContext, my_pthread_exit, 1, NULL);
 
 		// Start itimer
 		struct itimerval * timer = malloc(sizeof(struct itimerval));
@@ -128,27 +130,23 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		timer->it_interval.tv_usec = CONTEXT_SWITCH_TIME;
 		setitimer(ITIMER_VIRTUAL, timer, NULL);
 
-		// Allocating space for the first calling function
-		currentTcb = malloc(sizeof(tcb));
+		// Cretae tcb for first caller
+		currentTcb = initializeTcb();
 	}
 
-	// Create tcb for new thread
-	tcb * newTcb = malloc(sizeof(tcb));
-	newTcb->done = 0;
-	newTcb->retVal = NULL;
-	newTcb->waiter = NULL;
+	block = 0;
+
+	// Create the new thread
+	tcb * newTcb = initializeTcb();
 	getcontext(&(newTcb->context));
 	void * newThreadStack = malloc(TEMP_SIZE);
 	newTcb->context.uc_link = &exitContext;
 	newTcb->context.uc_stack.ss_size = TEMP_SIZE;
 	newTcb->context.uc_stack.ss_sp = newThreadStack;
 	makecontext(&(newTcb->context), function, 1, arg);
-	newTcb->tid = newTcb; // Tid is set to the address of <newTcb>
 	*thread = newTcb;
-	enqueueTcb(newTcb, &hpq); // Save the new tcb
+	enqueueTcb(newTcb, &hpq);
 
-	// Unblock the scheduler
-	block = 0;
 	return 0;
 };
 
@@ -165,6 +163,9 @@ void my_pthread_exit(void *value_ptr) {
 	currentTcb->done = 1;
 	currentTcb->retVal = value_ptr;
 
+	// If the exiting thread has another thread
+	// waiting on it, put the waiting thread in
+	// the queue so it can be run later
 	if (currentTcb->waiter != NULL) {
 		enqueueTcb(currentTcb->waiter, &hpq);
 	}
@@ -178,6 +179,8 @@ void my_pthread_exit(void *value_ptr) {
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
+	block = 1;
+
 	// Retrieve the tcb of the joining thread
 	tcb * joining = thread;
 
@@ -186,14 +189,13 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	// the joining thread's tcb and start
 	// waiting
 	if (!(joining->done)) {
-
-		block = 1;
 		joining->waiter = currentTcb;
 		currentTcb = dequeueTcb(&hpq);
 		block = 0;
-
 		swapcontext(&(joining->waiter->context), &(currentTcb->context));
 	}
+
+	block = 0;
 
 	// If <value_ptr> is not null, make it point to the
 	// joining thread's return value.

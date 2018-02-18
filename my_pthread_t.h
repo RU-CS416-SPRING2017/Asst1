@@ -25,7 +25,6 @@ typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
 	/* add something here */
-	my_pthread_t tid;
 	ucontext_t context;
 	char done;
 	void * retVal;
