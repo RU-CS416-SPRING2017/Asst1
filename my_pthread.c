@@ -175,10 +175,6 @@ void my_pthread_exit(void *value_ptr) {
 	schedule(0);
 };
 
-void ass() {
-	printf("ass\n");
-}
-
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
