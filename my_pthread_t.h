@@ -25,8 +25,10 @@ typedef uint my_pthread_t;
 
 typedef struct threadControlBlock {
 	/* add something here */
-	my_pthread_t tid;
 	ucontext_t context;
+	char done;
+	void * retVal;
+	struct threadControlBlock * waiter;
 } tcb; 
 
 /* mutex struct definition */
@@ -38,10 +40,15 @@ typedef struct my_pthread_mutex_t {
 #define TEMP_SIZE 4096
 #define CONTEXT_SWITCH_TIME 25 // In milliseconds
 
-struct threadQueueNode {
+struct tcbQueueNode {
 	tcb * thread;
 	struct threadQueueNode * next;
 	struct threadQueueNode * previous;
+};
+
+struct tcbQueue {
+	struct tcbQueueNode * tcbQueueHead;
+	struct tcbQueueNode * tcbQueueTail;
 };
 // Feel free to add your own auxiliary data structures
 
