@@ -12,14 +12,12 @@
 char initialized = 0;
 // Exit context
 ucontext_t exitContext;
-// Head of the thread queue
-static struct threadQueueNode * threadQueueHead = NULL;
-// Tail of the thread queue
-static struct threadQueueNode * threadQueueTail = NULL;
 // Checks if sheduler should be blocked
 char block = 0;
 // Pointer to the currently running thread's tcb
 tcb * currentTcb = NULL;
+// High priority queue
+struct tcbQueue hpq = { NULL, NULL };
 
 // Returns the tcb with <tid>, returns NULL if it doesn't
 // exist
@@ -30,36 +28,36 @@ tcb * getTcb(my_pthread_t tid) {
 }
 
 // Enqueue <thread> onto the queue
-void enqueueTcb(tcb * thread) {
+void enqueueTcb(tcb * thread, struct tcbQueue * queue) {
 
-	struct threadQueueNode * node = malloc(sizeof(struct threadQueueNode));
+	struct tcbQueueNode * node = malloc(sizeof(struct tcbQueueNode));
 	node->thread = thread;
 	node->previous = NULL;
 
-	if (threadQueueTail == NULL) {
+	if (queue->tcbQueueTail == NULL) {
 		node->next = NULL;
-		threadQueueHead = node;
-		threadQueueTail = node;
+		queue->tcbQueueHead = node;
+		queue->tcbQueueTail = node;
 
 	} else {
-		node->next = threadQueueHead;
-		threadQueueHead->previous = node;
-		threadQueueHead = node;
+		node->next = queue->tcbQueueHead;
+		queue->tcbQueueHead->previous = node;
+		queue->tcbQueueHead = node;
 	}
 }
 
 // Dequeues a tcb, returns NULL if
 // no tcb
-tcb * dequeueTcb() {
+tcb * dequeueTcb(struct tcbQueue * queue) {
 
-	if (threadQueueTail == NULL) {
+	if (queue->tcbQueueTail == NULL) {
 		return NULL;
 
 	} else {
-		tcb * ret = threadQueueTail->thread;
-		struct threadQueueNode * newTail = threadQueueTail->previous;
-		free(threadQueueTail);
-		threadQueueTail = newTail;
+		tcb * ret = queue->tcbQueueTail->thread;
+		struct tcbQueueNode * newTail = queue->tcbQueueTail->previous;
+		free(queue->tcbQueueTail);
+		queue->tcbQueueTail = newTail;
 		return ret;
 	}
 }
@@ -73,7 +71,7 @@ void schedule(int signum) {
 		block = 1;
 
 		// Get next tcb in the queue
-		tcb * nextTcb = dequeueTcb();
+		tcb * nextTcb = dequeueTcb(&hpq);
 
 		// Switch context if there was a thread in
 		// the queue. Unblock the scheduler.
@@ -88,7 +86,7 @@ void schedule(int signum) {
 				setcontext(&(nextTcb->context));
 
 			} else {
-				enqueueTcb(previousTcb);
+				enqueueTcb(previousTcb, &hpq);
 				block = 0;
 				swapcontext(&(previousTcb->context), &(nextTcb->context));
 			}
@@ -143,7 +141,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	newTcb->context.uc_stack.ss_sp = newThreadStack;
 	makecontext(&(newTcb->context), function, 1, arg);
 	newTcb->tid = &newTcb; // Tid is set to the address of <newTcb>
-	enqueueTcb(newTcb); // Save the new tcb
+	enqueueTcb(newTcb, &hpq); // Save the new tcb
 
 	// Unblock the scheduler
 	block = 0;
