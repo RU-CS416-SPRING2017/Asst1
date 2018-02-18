@@ -149,7 +149,6 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 	// Unblock the scheduler
 	block = 0;
-	// schedule(1);
 	return 0;
 };
 
@@ -183,22 +182,25 @@ void ass() {
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
-	void * ts = malloc(TEMP_SIZE);
-	tcb * temp = malloc(sizeof(tcb));
-	temp->context.uc_stack.ss_size = TEMP_SIZE;
-	temp->context.uc_stack.ss_sp = ts;
-	getcontext(&(temp->context));
-	makecontext(&(temp->context), ass, 0);
-
+	// Retrieve the tcb of the joining thread
 	tcb * joining = thread;
 
+	// If the the joining thread isn't done,
+	// refrence the waiting (this) thread in
+	// the joining thread's tcb and start
+	// waiting
 	if (!(joining->done)) {
+
+		block = 1;
 		joining->waiter = currentTcb;
-		tcb * i = dequeueTcb(&hpq);
-		currentTcb = i;
-		swapcontext(&(joining->waiter->context), &(i->context));
+		currentTcb = dequeueTcb(&hpq);
+		block = 0;
+
+		swapcontext(&(joining->waiter->context), &(currentTcb->context));
 	}
 
+	// If <value_ptr> is not null, make it point to the
+	// joining thread's return value.
 	if (value_ptr != NULL) { *value_ptr = joining->retVal; }
 
 	return 0;
