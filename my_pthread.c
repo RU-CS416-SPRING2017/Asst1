@@ -6,6 +6,9 @@
 // username of iLab:
 // iLab Server:
 
+#define TEMP_SIZE 4096
+#define INTERRUPT_TIME 25 // In milliseconds
+
 #include "my_pthread_t.h"
 
 // Checks if library is properly initialized
@@ -62,6 +65,11 @@ tcb * dequeueTcb(struct tcbQueue * queue) {
 		queue->tcbQueueTail = newTail;
 		return ret;
 	}
+}
+
+// Returns the next tcb and removes it from the queue
+tcb * nextTcb() {
+	return dequeueTcb(&hpq);
 }
 
 void schedule(int signum) {
