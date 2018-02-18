@@ -149,7 +149,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 	// Unblock the scheduler
 	block = 0;
-	schedule(1);
+	// schedule(1);
 	return 0;
 };
 
@@ -176,22 +176,35 @@ void my_pthread_exit(void *value_ptr) {
 	schedule(0);
 };
 
+void ass() {
+	printf("ass\n");
+}
+
 /* wait for thread termination */
 int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 	block = 1;
 
+	void * ts = malloc(TEMP_SIZE);
+	tcb * temp = malloc(sizeof(tcb));
+	temp->context.uc_stack.ss_size = TEMP_SIZE;
+	temp->context.uc_stack.ss_sp = ts;
+	getcontext(&(temp->context));
+	makecontext(&(temp->context), ass, 0);
+
 	tcb * joining = thread;
 
 	if (!(joining->done)) {
 		joining->waiter = currentTcb;
-		currentTcb = NULL;
+		tcb * i = dequeueTcb(&hpq);
+		currentTcb = i;
 		block = 0;
+		swapcontext(&(joining->waiter->context), &(i->context));
 	}
-	schedule(0);
+	// schedule(0);
 
-	*value_ptr = joining->retVal;
-	block = 0;
+	// *value_ptr = joining->retVal;
+	// block = 0;
 
 	return 0;
 };
