@@ -104,10 +104,7 @@ tcb * getNextTcb() {
 void schedule(int signum) {
 
 	// Only run if scheduler isn't blocked
-	if (!block) {
-
-		// Block the scheduler
-		block = 1;
+	if (!__sync_val_compare_and_swap(&block, 0, 1)) {
 
 		// Get the runtime of the previous thread
 		struct timeval now;
@@ -289,20 +286,64 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+	mutex->locked = 0;
+	mutex->waiters = malloc(sizeof(struct queue));
+	mutex->waiters->head = NULL;
+	mutex->waiters->tail = NULL;
 	return 0;
 };
 
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+
+	while (__sync_lock_test_and_set(&(mutex->guard), 1));
+
+	if (mutex->locked) {
+
+		block = 1;
+
+		tcb * previousTcb = currentTcb;
+		currentTcb = getNextTcb();
+		enqueue(previousTcb, mutex->waiters);
+		gettimeofday(&(currentTcb->start), NULL);
+		mutex->guard = 0;
+		block = 0;
+		swapcontext(&(previousTcb->context), &(currentTcb->context));
+
+	} else {
+		mutex->locked = 1;
+		mutex->locker = currentTcb;
+		mutex->guard = 0;
+	}
+
 	return 0;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+
+	if (mutex->locker == currentTcb) {
+
+		while (__sync_lock_test_and_set(&(mutex->guard), 1));
+
+		tcb * waiter = dequeue(mutex->waiters);
+
+		if (waiter == NULL) {
+			mutex->locked = 0;
+
+		} else {
+			mutex->locker = waiter;
+			enqueue(waiter, &(PQs[waiter->priorityLevel].queue));
+		}
+
+		mutex->guard = 0;
+	}
+
 	return 0;
 };
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+	free(mutex->waiters);
 	return 0;
 };

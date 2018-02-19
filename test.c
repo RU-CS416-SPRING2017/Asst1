@@ -1,7 +1,12 @@
 #include "my_pthread_t.h"
 
+my_pthread_mutex_t m;
+
 // Temporyary test method.
 void test(int signum) {
+
+    my_pthread_mutex_lock(&m);
+
     int i;
     for (i = 0; i < 999999; i++) {
         int l = (((i+1) *32)/65)*(((i+1) *32)/65);
@@ -23,6 +28,11 @@ void test(int signum) {
         // printf("%d ", l);
     }
     printf("in test %d, %d\n", signum, 3);
+
+    my_pthread_mutex_unlock(&m);
+
+    my_pthread_mutex_lock(&m);
+
     for (i = 0; i < 999999; i++) {
         int l = (((i+1) *32)/65)*(((i+1) *32)/65);
         // printf("%d ", l);
@@ -48,6 +58,8 @@ void test(int signum) {
         // printf("%d ", l);
     }
     printf("in test %d, %d\n", signum, 8);
+    
+    my_pthread_mutex_unlock(&m);
 
     char * testString = malloc(10);
     sprintf(testString, "test %d", signum);
@@ -57,6 +69,8 @@ void test(int signum) {
 
 // Temporary main for testing.
 int main(int argc, char ** argv) {
+
+    my_pthread_mutex_init(&m, NULL);
 
     my_pthread_t thread[5];
 
