@@ -108,16 +108,17 @@ void schedule(int signum) {
 		// Block the scheduler
 		block = 1;
 
+		// Get the runtime of the previous thread
 		struct timeval now;
 		gettimeofday(&now, NULL);
 		suseconds_t previousTcbRunTime = 0;
 		unsigned int previousTimeSlice = 0;
-
 		if (currentTcb != NULL) {
 			previousTcbRunTime = getElapsedTime(&(currentTcb->start), &now);
 			previousTimeSlice = PQs[currentTcb->priorityLevel].timeSlice;
 		}
 
+		// If thread ran long enough, context switch
 		if (previousTcbRunTime >= previousTimeSlice) {
 
 			tcb * nextTcb = getNextTcb();
@@ -129,6 +130,7 @@ void schedule(int signum) {
 				tcb * previousTcb = currentTcb;
 				currentTcb = nextTcb;
 
+				// Set start time for the next thread
 				gettimeofday(&(currentTcb->start), NULL);
 				
 				// If <previousTcb> is NULL then setcontext to the
