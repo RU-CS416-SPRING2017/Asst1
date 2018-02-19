@@ -7,9 +7,11 @@
 // iLab Server:
 
 #define TEMP_SIZE 4096
-#define INTERRUPT_TIME 25 // In microseconds
-#define BASE_TIME_SLICE INTERRUPT_TIME // In microseconds
 #define NUM_PRIORITY_LVLS 4
+// All times are in microseconds
+#define INTERRUPT_TIME 25
+#define BASE_TIME_SLICE INTERRUPT_TIME
+#define MAINTAIN_TIME 1000
 
 #include "my_pthread_t.h"
 
@@ -30,6 +32,13 @@ suseconds_t getElapsedTime(struct timeval * start, struct timeval * end) {
 	suseconds_t microseconds = end->tv_usec - start->tv_usec;
 	if (seconds == 0) { return microseconds; }
 	else { return (seconds * 1000000) + microseconds; }
+}
+
+// Returns the runtime of thread till now
+suseconds_t getRunTime(tcb * thread) {
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	return getElapsedTime(&(currentTcb->start), &now);
 }
 
 // Initializes <priorityQueue>
@@ -109,15 +118,15 @@ void schedule(int signum) {
 		// Get the runtime of the previous thread
 		struct timeval now;
 		gettimeofday(&now, NULL);
-		suseconds_t previousTcbRunTime = 0;
+		suseconds_t previousRunTime = 0;
 		unsigned int previousTimeSlice = 0;
 		if (currentTcb != NULL) {
-			previousTcbRunTime = getElapsedTime(&(currentTcb->start), &now);
+			previousRunTime = getElapsedTime(&(currentTcb->start), &now);
 			previousTimeSlice = PQs[currentTcb->priorityLevel].timeSlice;
 		}
 
 		// If thread ran long enough, context switch
-		if (previousTcbRunTime >= previousTimeSlice) {
+		if (previousRunTime >= previousTimeSlice) {
 
 			tcb * nextTcb = getNextTcb();
 
@@ -127,13 +136,11 @@ void schedule(int signum) {
 
 				tcb * previousTcb = currentTcb;
 				currentTcb = nextTcb;
-
-				// Set start time for the next thread
-				gettimeofday(&(currentTcb->start), NULL);
-				
+					
 				// If <previousTcb> is NULL then setcontext to the
 				// <newTcb>, else swap it with <previousTcb>
 				if (previousTcb == NULL) { 
+					gettimeofday(&(currentTcb->start), NULL);
 					block = 0;
 					setcontext(&(currentTcb->context));
 
@@ -145,7 +152,12 @@ void schedule(int signum) {
 						(previousTcb->priorityLevel)++;
 					}
 
+					// Add to the total run time of the previous thread
+					previousTcb->totalRunTime += previousRunTime;
+
+					// Swap the threads
 					enqueue(previousTcb, &(PQs[previousTcb->priorityLevel].queue));
+					gettimeofday(&(currentTcb->start), NULL);
 					block = 0;
 					swapcontext(&(previousTcb->context), &(currentTcb->context));
 				}
@@ -268,6 +280,11 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	// the joining thread's tcb and start
 	// waiting
 	if (!(joining->done)) {
+
+		// Add to the total runtime of the waiter
+		currentTcb->totalRunTime += getRunTime(currentTcb);
+
+		// Swap the waiter with the next thread
 		joining->waiter = currentTcb;
 		currentTcb = getNextTcb();
 		gettimeofday(&(currentTcb->start), NULL);
@@ -300,13 +317,16 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 
 	if (mutex->locked) {
 
-		block = 1;
+		// Adds to the run time of the lock waiter
+		currentTcb->totalRunTime += getRunTime(currentTcb);
 
+		// Swap the lock waiter with the next thread
+		block = 1;
 		tcb * previousTcb = currentTcb;
 		currentTcb = getNextTcb();
 		enqueue(previousTcb, mutex->waiters);
-		gettimeofday(&(currentTcb->start), NULL);
 		mutex->guard = 0;
+		gettimeofday(&(currentTcb->start), NULL);
 		block = 0;
 		swapcontext(&(previousTcb->context), &(currentTcb->context));
 
