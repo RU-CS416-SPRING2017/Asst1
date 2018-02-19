@@ -8,7 +8,7 @@
 
 #define TEMP_SIZE 4096
 #define INTERRUPT_TIME 25 // In microseconds
-#define HPQ_QUANTA 25 // In microseconds
+#define BASE_TIME_SLICE INTERRUPT_TIME // In microseconds
 #define NUM_PRIORITY_LVLS 4
 
 #include "my_pthread_t.h"
@@ -36,7 +36,7 @@ suseconds_t getElapsedTime(struct timeval * start, struct timeval * end) {
 void initializePQs() {
 	int i;
 	for (i = 0; i < NUM_PRIORITY_LVLS; i++) {
-		if (i == 0) { PQs[i].timeSlice = HPQ_QUANTA; }
+		if (i == 0) { PQs[i].timeSlice = BASE_TIME_SLICE; }
 		else { PQs[i].timeSlice = PQs[i-1].timeSlice * 2; }
 		PQs[i].queue.head = NULL;
 		PQs[i].queue.tail = NULL;
@@ -214,6 +214,25 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 /* give CPU pocession to other user level threads voluntarily */
 int my_pthread_yield() {
+
+	block = 1;
+
+	tcb * nextTcb = getNextTcb();
+	
+	if (nextTcb != NULL) {
+
+		tcb * previousTcb = currentTcb;
+		currentTcb = nextTcb;
+
+		// Set start time for the next thread
+		gettimeofday(&(currentTcb->start), NULL);
+
+		enqueue(previousTcb, &(PQs[previousTcb->priorityLevel].queue));
+		block = 0;
+		swapcontext(&(previousTcb->context), &(currentTcb->context));
+	}
+
+	block = 0;
 	return 0;
 };
 
@@ -254,6 +273,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	if (!(joining->done)) {
 		joining->waiter = currentTcb;
 		currentTcb = getNextTcb();
+		gettimeofday(&(currentTcb->start), NULL);
 		block = 0;
 		swapcontext(&(joining->waiter->context), &(currentTcb->context));
 	}
