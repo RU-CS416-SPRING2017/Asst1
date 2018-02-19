@@ -221,22 +221,41 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
-	
+	// UNLOCKED -> lock is availabl,e LOCKED -> lock is unavailable 
+	mutex->lock = UNLOCKED;
+	mutex->guard = UNLOCKED;
 	return 0;
 };
 
-/* aquire the mutex lock */
+/* acquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
-	// 
-	while(1){
+	// need thread information
+/*	while(1){
 		while(mutex->lock == LOCKED);
 		if(__sync_lock_test_and_set(&(mutex->lock), 1) == UNLOCKED) {break};
-		}
+	}
+	*/
+	while(__sync_lock_test_and_set(&(mutex->guard), 1) == LOCKED);
+	if (mutex->lock == UNLOCKED) {
+		mutex->lock = LOCKED; // lock is acquired
+		mutex->guard = UNLOCKED;
+	} else {
+		queue_add(mutex->waitQueue, gettid()); //need thread info
+		mutex->guard = UNLOCKED;
+		futex_wait(mutex,val); //waits until value changes
+	}
 	return 0;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+	while(__sync_lock_test_and_set(&(mutex->guard), 1) == LOCKED);
+	if(queue_empty(mutex->queue)){
+		mutex->lock = UNLOCKED;
+	} else{
+		futex_wake(queue_remove(mutex->waitQueue)); //futex wake thread at this address
+	}
+	mutex->guard = UNLOCKED;
 	return 0;
 };
 
