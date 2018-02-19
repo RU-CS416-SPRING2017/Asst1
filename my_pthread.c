@@ -8,6 +8,7 @@
 
 #define TEMP_SIZE 4096
 #define INTERRUPT_TIME 25 // In microseconds
+#define HPQ_QUANTA 25 // In microseconds
 #define NUM_PRIORITY_LVLS 4
 
 #include "my_pthread_t.h"
@@ -35,7 +36,7 @@ suseconds_t getElapsedTime(struct timeval * start, struct timeval * end) {
 void initializePQs() {
 	int i;
 	for (i = 0; i < NUM_PRIORITY_LVLS; i++) {
-		if (i == 0) { PQs[i].timeSlice = INTERRUPT_TIME; }
+		if (i == 0) { PQs[i].timeSlice = HPQ_QUANTA; }
 		else { PQs[i].timeSlice = PQs[i-1].timeSlice * 2; }
 		PQs[i].queue.head = NULL;
 		PQs[i].queue.tail = NULL;
