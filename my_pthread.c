@@ -7,8 +7,9 @@
 // iLab Server:
 
 #define TEMP_SIZE 4096
-#define INTERRUPT_TIME 25 // In milliseconds
 #define INTERRUPT_TIME 25 // In microseconds
+#define BASE_TIME_SLICE INTERRUPT_TIME // In microseconds
+#define NUM_PRIORITY_LVLS 4
 
 #include "my_pthread_t.h"
 #define UNLOCKED 0
