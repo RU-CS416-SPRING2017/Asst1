@@ -29,6 +29,7 @@ typedef struct threadControlBlock {
 	char done;
 	void * retVal;
 	struct threadControlBlock * waiter;
+	int priorityLevel;
 } tcb; 
 
 /* mutex struct definition */
@@ -38,15 +39,20 @@ typedef struct my_pthread_mutex_t {
 
 /* define your data structures here: */
 
-struct tcbQueueNode {
-	tcb * thread;
-	struct threadQueueNode * next;
-	struct threadQueueNode * previous;
+struct queueNode {
+	void * data;
+	struct queueNode * next;
+	struct queueNode * previous;
 };
 
-struct tcbQueue {
-	struct tcbQueueNode * tcbQueueHead;
-	struct tcbQueueNode * tcbQueueTail;
+struct queue {
+	struct queueNode * head;
+	struct queueNode * tail;
+};
+
+struct priorityQueue {
+	struct queue queue;
+	unsigned int timeSlice;
 };
 
 // Feel free to add your own auxiliary data structures

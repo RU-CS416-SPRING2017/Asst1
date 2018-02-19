@@ -8,6 +8,7 @@
 
 #define TEMP_SIZE 4096
 #define INTERRUPT_TIME 25 // In milliseconds
+#define NUM_PRIORITY_LVLS 4
 
 #include "my_pthread_t.h"
 
@@ -20,56 +21,73 @@ char block = 0;
 // Pointer to the currently running thread's tcb
 tcb * currentTcb = NULL;
 // High priority queue
-struct tcbQueue hpq = { NULL, NULL };
+struct priorityQueue PQs[NUM_PRIORITY_LVLS];
 
-// Initializes a tcb, the context further
+// Initializes <priorityQueue>
+void initializePQs() {
+	int i;
+	for (i = 0; i < NUM_PRIORITY_LVLS; i++) {
+		if (i == 0) { PQs[i].timeSlice = INTERRUPT_TIME; }
+		else { PQs[i].timeSlice = PQs[i-1].timeSlice * 2; }
+		PQs[i].queue.head = NULL;
+		PQs[i].queue.tail = NULL;
+	}
+}
+
+// Initializes a tcb, the context must further
 // be defined
 tcb * initializeTcb() {
 	tcb * ret = malloc(sizeof(tcb));
 	ret->done = 0;
 	ret->retVal = NULL;
 	ret->waiter = NULL;
+	ret->priorityLevel = 0;
 	return ret;
 }
 
-// Enqueue <thread> onto the queue
-void enqueueTcb(tcb * thread, struct tcbQueue * queue) {
+// Enqueue <data> into <queue>
+void enqueue(void * data, struct queue * queue) {
 
-	struct tcbQueueNode * node = malloc(sizeof(struct tcbQueueNode));
-	node->thread = thread;
+	struct queueNode * node = malloc(sizeof(struct queueNode));
+	node->data = data;
 	node->previous = NULL;
 
-	if (queue->tcbQueueTail == NULL) {
+	if (queue->tail == NULL) {
 		node->next = NULL;
-		queue->tcbQueueHead = node;
-		queue->tcbQueueTail = node;
+		queue->head = node;
+		queue->tail = node;
 
 	} else {
-		node->next = queue->tcbQueueHead;
-		queue->tcbQueueHead->previous = node;
-		queue->tcbQueueHead = node;
+		node->next = queue->head;
+		queue->head->previous = node;
+		queue->head = node;
 	}
 }
 
-// Dequeues a tcb, returns NULL if
-// no tcb
-tcb * dequeueTcb(struct tcbQueue * queue) {
+// Dequeues from <queue>
+void * dequeue(struct queue * queue) {
 
-	if (queue->tcbQueueTail == NULL) {
+	if (queue->tail == NULL) {
 		return NULL;
 
 	} else {
-		tcb * ret = queue->tcbQueueTail->thread;
-		struct tcbQueueNode * newTail = queue->tcbQueueTail->previous;
-		free(queue->tcbQueueTail);
-		queue->tcbQueueTail = newTail;
-		return ret;
+		void * data = queue->tail->data;
+		struct queueNode * newTail = queue->tail->previous;
+		free(queue->tail);
+		queue->tail = newTail;
+		return data;
 	}
 }
 
-// Returns the next tcb and removes it from the queue
-tcb * nextTcb() {
-	return dequeueTcb(&hpq);
+// Returns the next tcb and removes it from the queue,
+// NULL if no threads in queue
+tcb * getNextTcb() {
+	int i;
+	for (i = 0; i < NUM_PRIORITY_LVLS; i++) {
+		tcb * ret = dequeue(&(PQs[i].queue));
+		if (ret != NULL) { return ret; }
+	}
+	return NULL;
 }
 
 void schedule(int signum) {
@@ -81,7 +99,7 @@ void schedule(int signum) {
 		block = 1;
 
 		// Get next tcb in the queue
-		tcb * nextTcb = dequeueTcb(&hpq);
+		tcb * nextTcb = getNextTcb();
 
 		// Switch context if there was a thread in
 		// the queue. Unblock the scheduler.
@@ -96,7 +114,14 @@ void schedule(int signum) {
 				setcontext(&(nextTcb->context));
 
 			} else {
-				enqueueTcb(previousTcb, &hpq);
+
+				// Decrease the priority level of <previousTcb> if not already
+				// at the lowest priority
+				if (previousTcb->priorityLevel < (NUM_PRIORITY_LVLS - 1)) {
+					(previousTcb->priorityLevel)++;
+				}
+
+				enqueue(previousTcb, &(PQs[previousTcb->priorityLevel].queue));
 				block = 0;
 				swapcontext(&(previousTcb->context), &(nextTcb->context));
 			}
@@ -117,7 +142,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	// exitContext
 	if (!initialized) {
 
-		initialized = 1;
+		initializePQs();
 
 		// Catch itimer signal
 		signal(SIGVTALRM, schedule);
@@ -140,6 +165,8 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 
 		// Cretae tcb for first caller
 		currentTcb = initializeTcb();
+
+		initialized = 1;
 	}
 
 	block = 0;
@@ -153,7 +180,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	newTcb->context.uc_stack.ss_sp = newThreadStack;
 	makecontext(&(newTcb->context), function, 1, arg);
 	*thread = newTcb;
-	enqueueTcb(newTcb, &hpq);
+	enqueue(newTcb, &(PQs[0].queue));
 
 	return 0;
 };
@@ -175,7 +202,8 @@ void my_pthread_exit(void *value_ptr) {
 	// waiting on it, put the waiting thread in
 	// the queue so it can be run later
 	if (currentTcb->waiter != NULL) {
-		enqueueTcb(currentTcb->waiter, &hpq);
+		currentTcb->waiter->priorityLevel = 0;
+		enqueue(currentTcb->waiter, &(PQs[0].queue));
 	}
 
 	currentTcb = NULL;
@@ -198,7 +226,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	// waiting
 	if (!(joining->done)) {
 		joining->waiter = currentTcb;
-		currentTcb = dequeueTcb(&hpq);
+		currentTcb = getNextTcb();
 		block = 0;
 		swapcontext(&(joining->waiter->context), &(currentTcb->context));
 	}
