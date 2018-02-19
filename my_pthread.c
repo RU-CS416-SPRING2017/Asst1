@@ -45,12 +45,9 @@ void initializePQs() {
 	}
 }
 
-<<<<<<< HEAD
 
-// Initializes a tcb, the context further
-=======
 // Initializes a tcb, the context must further
->>>>>>> master
+
 // be defined
 tcb * getTcb() {
 	tcb * ret = malloc(sizeof(tcb));
@@ -89,23 +86,14 @@ void * dequeue(struct queue * queue) {
 		return NULL;
 
 	} else {
-<<<<<<< HEAD
-		tcb * ret = queue->tcbQueueTail->thread;
-		
-		struct tcbQueueNode * newTail = queue->tcbQueueTail->previous;
-		if (newTail == NULL){
-			queue->tcbQueueHead = NULL;
-		}
-		free(queue->tcbQueueTail);
-		queue->tcbQueueTail = newTail;
-		return ret;
-=======
 		void * data = queue->tail->data;
 		struct queueNode * newTail = queue->tail->previous;
+		if (newTail == NULL){
+			queue->tcbQueueHead = NULL; // because you do not want to free if another pointer is still pointing to it. if newtail is null, then it is the only one therefore head must also change it's pointer to null
+		}
 		free(queue->tail);
 		queue->tail = newTail;
 		return data;
->>>>>>> master
 	}
 }
 
@@ -327,9 +315,9 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 		mutex->lock = LOCKED; // lock is acquired
 		mutex->guard = UNLOCKED;
 	} else {
-		queue_add(mutex->waitQueue, gettid()); //need thread info
+		enqueue(mutex->waitQueue, gettid()); //need thread info
 		mutex->guard = UNLOCKED;
-		futex_wait(mutex,val); //waits until value changes
+		futex_wait(mutex,val); //waits until value changes //value has to equal value at address mutex
 	}
 	return 0;
 };
@@ -337,10 +325,10 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 	while(__sync_lock_test_and_set(&(mutex->guard), 1) == LOCKED);
-	if(queue_empty(mutex->queue)){
+	if((mutex->waitQueue->)){
 		mutex->lock = UNLOCKED;
 	} else{
-		futex_wake(queue_remove(mutex->waitQueue)); //futex wake thread at this address
+		futex_wake(dequeue(mutex->waitQueue)); //futex wake thread at this address
 	}
 	mutex->guard = UNLOCKED;
 	return 0;
