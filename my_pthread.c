@@ -6,12 +6,18 @@
 // username of iLab:
 // iLab Server:
 
+/////////////////////////////////////////
+// All macro times are in microseconds //
+/////////////////////////////////////////
 #define TEMP_SIZE 4096
+// Number of priority queues
 #define NUM_PRIORITY_LVLS 4
-// All times are in microseconds
+// Interval time to run scheduler
 #define INTERRUPT_TIME 25
+// Time slice for highest priority, each
+// priority level has a time slice x2 of
+// the priority level above it
 #define BASE_TIME_SLICE INTERRUPT_TIME
-#define MAINTAIN_TIME 1000
 
 #include "my_pthread_t.h"
 
@@ -61,7 +67,7 @@ tcb * getTcb() {
 	ret->waiter = NULL;
 	ret->priorityLevel = 0;
 	gettimeofday(&(ret->start), NULL);
-	ret->totalRunTime = 0;
+	// ret->totalRunTime = 0;
 	return ret;
 }
 
@@ -147,13 +153,13 @@ void schedule(int signum) {
 				} else {
 
 					// Decrease the priority level of <previousTcb> if not already
-					// at the lowest priority
+					// at the lowest priority, else increase to highest priority
 					if (previousTcb->priorityLevel < (NUM_PRIORITY_LVLS - 1)) {
 						(previousTcb->priorityLevel)++;
-					}
+					} else { previousTcb->priorityLevel = 0; }
 
 					// Add to the total run time of the previous thread
-					previousTcb->totalRunTime += previousRunTime;
+					// previousTcb->totalRunTime += previousRunTime;
 
 					// Swap the threads
 					enqueue(previousTcb, &(PQs[previousTcb->priorityLevel].queue));
@@ -282,7 +288,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	if (!(joining->done)) {
 
 		// Add to the total runtime of the waiter
-		currentTcb->totalRunTime += getRunTime(currentTcb);
+		// currentTcb->totalRunTime += getRunTime(currentTcb);
 
 		// Swap the waiter with the next thread
 		joining->waiter = currentTcb;
@@ -318,7 +324,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 	if (mutex->locked) {
 
 		// Adds to the run time of the lock waiter
-		currentTcb->totalRunTime += getRunTime(currentTcb);
+		// currentTcb->totalRunTime += getRunTime(currentTcb);
 
 		// Swap the lock waiter with the next thread
 		block = 1;
