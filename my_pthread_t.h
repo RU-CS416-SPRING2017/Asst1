@@ -31,13 +31,11 @@ typedef struct threadControlBlock {
 	struct threadControlBlock * waiter;
 	int priorityLevel;
 	struct timeval start;
-	suseconds_t totalRunTime;
 } tcb; 
 
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
 	/* add something here */
-	char locked;
 	char guard;
 	tcb * locker;
 	struct queue * waiters;

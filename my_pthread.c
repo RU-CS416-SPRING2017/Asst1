@@ -105,6 +105,34 @@ void * dequeue(struct queue * queue) {
 	}
 }
 
+// Removes <data> from <queue> and returns 1,
+// returns 0 if not found
+char removeFromQueue(void * data, struct queue * queue) {
+
+	struct queueNode * trav = queue->tail;
+
+	while (trav != NULL) {
+
+		if (trav->data == data) {
+
+			if (trav->next != NULL) {
+				trav->next->previous = trav->previous;
+			}
+
+			if (trav->previous != NULL) {
+				trav->previous->next = trav->next;
+			}
+
+			free(trav);
+
+			return 1;
+		}
+	}
+
+	return 0;
+	
+}
+
 // Returns the next tcb and removes it from the queue,
 // NULL if no threads in queue
 tcb * getNextTcb() {
@@ -309,7 +337,7 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
-	mutex->locked = 0;
+	mutex->locker = NULL;
 	mutex->waiters = malloc(sizeof(struct queue));
 	mutex->waiters->head = NULL;
 	mutex->waiters->tail = NULL;
@@ -321,10 +349,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 
 	while (__sync_lock_test_and_set(&(mutex->guard), 1));
 
-	if (mutex->locked) {
-
-		// Adds to the run time of the lock waiter
-		// currentTcb->totalRunTime += getRunTime(currentTcb);
+	if (mutex->locker != NULL) {
 
 		// Swap the lock waiter with the next thread
 		block = 1;
@@ -332,12 +357,19 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 		currentTcb = getNextTcb();
 		enqueue(previousTcb, mutex->waiters);
 		mutex->guard = 0;
+
+		// Increases priority of the locker to the priority of the waiter
+		if (previousTcb->priorityLevel > mutex->locker->priorityLevel) {
+			removeFromQueue(mutex->locker, &(PQs[mutex->locker->priorityLevel].queue));
+			mutex->locker->priorityLevel = previousTcb->priorityLevel;
+			enqueue(mutex->locker, &(PQs[mutex->locker->priorityLevel].queue));
+		}
+
 		gettimeofday(&(currentTcb->start), NULL);
 		block = 0;
 		swapcontext(&(previousTcb->context), &(currentTcb->context));
 
 	} else {
-		mutex->locked = 1;
 		mutex->locker = currentTcb;
 		mutex->guard = 0;
 	}
@@ -355,9 +387,10 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 		tcb * waiter = dequeue(mutex->waiters);
 
 		if (waiter == NULL) {
-			mutex->locked = 0;
+			mutex->locker = NULL;
 
 		} else {
+			waiter->priorityLevel = mutex->locker->priorityLevel;
 			mutex->locker = waiter;
 			enqueue(waiter, &(PQs[waiter->priorityLevel].queue));
 		}
