@@ -6,6 +6,9 @@
 // username of iLab:
 // iLab Server:
 
+#define TEMP_SIZE 4096
+#define INTERRUPT_TIME 25 // In milliseconds
+
 #include "my_pthread_t.h"
 #define UNLOCKED 0
 #define LOCKED 1
@@ -71,6 +74,11 @@ tcb * dequeueTcb(struct tcbQueue * queue) {
 	}
 }
 
+// Returns the next tcb and removes it from the queue
+tcb * nextTcb() {
+	return dequeueTcb(&hpq);
+}
+
 void schedule(int signum) {
 
 	// Only run if scheduler isn't blocked
@@ -132,9 +140,9 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		// Start itimer
 		struct itimerval * timer = malloc(sizeof(struct itimerval));
 		timer->it_value.tv_sec = 0;
-		timer->it_value.tv_usec = CONTEXT_SWITCH_TIME;
+		timer->it_value.tv_usec = INTERRUPT_TIME;
 		timer->it_interval.tv_sec = 0;
-		timer->it_interval.tv_usec = CONTEXT_SWITCH_TIME;
+		timer->it_interval.tv_usec = INTERRUPT_TIME;
 		setitimer(ITIMER_VIRTUAL, timer, NULL);
 
 		// Cretae tcb for first caller
