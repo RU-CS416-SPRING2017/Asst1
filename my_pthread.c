@@ -296,9 +296,10 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
-	// UNLOCKED -> lock is availabl,e LOCKED -> lock is unavailable 
+	// UNLOCKED -> lock is available LOCKED -> lock is unavailable 
 	mutex->lock = UNLOCKED;
 	mutex->guard = UNLOCKED;
+	mutex->
 	return 0;
 };
 
@@ -315,7 +316,7 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 		mutex->lock = LOCKED; // lock is acquired
 		mutex->guard = UNLOCKED;
 	} else {
-		enqueue(mutex->waitQueue, gettid()); //need thread info
+		enqueue(mutex->waitQueue, &currentTcb); //need thread info
 		mutex->guard = UNLOCKED;
 		futex_wait(mutex,val); //waits until value changes //value has to equal value at address mutex
 	}

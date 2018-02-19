@@ -38,7 +38,7 @@ typedef struct threadControlBlock {
 typedef struct my_pthread_mutex_t {
 	int lock;
 	int guard;
-	struct tcbQueue * waitQueue;
+	struct queue * waitQueue;
 	
 } my_pthread_mutex_t;
 

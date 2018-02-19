@@ -1,6 +1,6 @@
 #include "my_pthread_t.h"
 
-// Temporyary test method.
+// Temporary test method.
 void test(int signum) {
     int i;
     for (i = 0; i < 999999; i++) {
