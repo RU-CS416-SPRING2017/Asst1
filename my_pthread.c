@@ -7,7 +7,7 @@
 // iLab Server:
 
 #define TEMP_SIZE 4096
-#define INTERRUPT_TIME 25 // In milliseconds
+#define INTERRUPT_TIME 25 // In microseconds
 #define NUM_PRIORITY_LVLS 4
 
 #include "my_pthread_t.h"
@@ -23,6 +23,14 @@ tcb * currentTcb = NULL;
 // High priority queue
 struct priorityQueue PQs[NUM_PRIORITY_LVLS];
 
+// Returns the elapsed time
+suseconds_t getElapsedTime(struct timeval * start, struct timeval * end) {
+	time_t seconds = end->tv_sec - start->tv_sec;
+	suseconds_t microseconds = end->tv_usec - start->tv_usec;
+	if (seconds == 0) { return microseconds; }
+	else { return (seconds * 1000000) + microseconds; }
+}
+
 // Initializes <priorityQueue>
 void initializePQs() {
 	int i;
@@ -36,12 +44,14 @@ void initializePQs() {
 
 // Initializes a tcb, the context must further
 // be defined
-tcb * initializeTcb() {
+tcb * getTcb() {
 	tcb * ret = malloc(sizeof(tcb));
 	ret->done = 0;
 	ret->retVal = NULL;
 	ret->waiter = NULL;
 	ret->priorityLevel = 0;
+	gettimeofday(&(ret->start), NULL);
+	ret->totalRunTime = 0;
 	return ret;
 }
 
@@ -98,37 +108,51 @@ void schedule(int signum) {
 		// Block the scheduler
 		block = 1;
 
-		// Get next tcb in the queue
-		tcb * nextTcb = getNextTcb();
+		struct timeval now;
+		gettimeofday(&now, NULL);
+		suseconds_t previousTcbRunTime = 0;
+		unsigned int previousTimeSlice = 0;
 
-		// Switch context if there was a thread in
-		// the queue. Unblock the scheduler.
-		if (nextTcb != NULL) {
-			tcb * previousTcb = currentTcb;
-			currentTcb = nextTcb;
-			
-			// If <previousTcb> is NULL then setcontext to the
-			// <newTcb>, else swap it with <previousTcb>
-			if (previousTcb == NULL) { 
-				block = 0;
-				setcontext(&(nextTcb->context));
-
-			} else {
-
-				// Decrease the priority level of <previousTcb> if not already
-				// at the lowest priority
-				if (previousTcb->priorityLevel < (NUM_PRIORITY_LVLS - 1)) {
-					(previousTcb->priorityLevel)++;
-				}
-
-				enqueue(previousTcb, &(PQs[previousTcb->priorityLevel].queue));
-				block = 0;
-				swapcontext(&(previousTcb->context), &(nextTcb->context));
-			}
-	
-		} else {
-			block = 0;
+		if (currentTcb != NULL) {
+			previousTcbRunTime = getElapsedTime(&(currentTcb->start), &now);
+			previousTimeSlice = PQs[currentTcb->priorityLevel].timeSlice;
 		}
+
+		if (previousTcbRunTime >= previousTimeSlice) {
+
+			tcb * nextTcb = getNextTcb();
+
+			// Switch context if there was a thread in
+			// the queue. Unblock the scheduler.
+			if (nextTcb != NULL) {
+
+				tcb * previousTcb = currentTcb;
+				currentTcb = nextTcb;
+
+				gettimeofday(&(currentTcb->start), NULL);
+				
+				// If <previousTcb> is NULL then setcontext to the
+				// <newTcb>, else swap it with <previousTcb>
+				if (previousTcb == NULL) { 
+					block = 0;
+					setcontext(&(currentTcb->context));
+
+				} else {
+
+					// Decrease the priority level of <previousTcb> if not already
+					// at the lowest priority
+					if (previousTcb->priorityLevel < (NUM_PRIORITY_LVLS - 1)) {
+						(previousTcb->priorityLevel)++;
+					}
+
+					enqueue(previousTcb, &(PQs[previousTcb->priorityLevel].queue));
+					block = 0;
+					swapcontext(&(previousTcb->context), &(currentTcb->context));
+				}
+		
+			} else { block = 0; }
+
+		}  else { block = 0; }
 	}
 }
 
@@ -143,6 +167,9 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	if (!initialized) {
 
 		initializePQs();
+
+		// Cretae tcb for first caller
+		currentTcb = getTcb();
 
 		// Catch itimer signal
 		signal(SIGVTALRM, schedule);
@@ -163,16 +190,13 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		timer->it_interval.tv_usec = INTERRUPT_TIME;
 		setitimer(ITIMER_VIRTUAL, timer, NULL);
 
-		// Cretae tcb for first caller
-		currentTcb = initializeTcb();
-
 		initialized = 1;
 	}
 
 	block = 0;
 
 	// Create the new thread
-	tcb * newTcb = initializeTcb();
+	tcb * newTcb = getTcb();
 	getcontext(&(newTcb->context));
 	void * newThreadStack = malloc(TEMP_SIZE);
 	newTcb->context.uc_link = &exitContext;

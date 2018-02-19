@@ -20,7 +20,6 @@
 #include <ucontext.h>
 #include <sys/time.h>
 #include <signal.h>
-#include <time.h>
 
 typedef uint my_pthread_t;
 
@@ -31,6 +30,8 @@ typedef struct threadControlBlock {
 	void * retVal;
 	struct threadControlBlock * waiter;
 	int priorityLevel;
+	struct timeval start;
+	suseconds_t totalRunTime;
 } tcb; 
 
 /* mutex struct definition */
