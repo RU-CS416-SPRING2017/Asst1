@@ -33,7 +33,9 @@ typedef struct threadControlBlock {
 
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
-	/* add something here */
+	int lock;
+	my_pthread_t * thread;
+	
 } my_pthread_mutex_t;
 
 /* define your data structures here: */

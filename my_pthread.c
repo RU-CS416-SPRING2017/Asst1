@@ -7,6 +7,8 @@
 // iLab Server:
 
 #include "my_pthread_t.h"
+#define UNLOCKED 0
+#define LOCKED 1
 
 // Checks if library is properly initialized
 char initialized = 0;
@@ -19,6 +21,7 @@ tcb * currentTcb = NULL;
 // High priority queue
 struct tcbQueue hpq = { NULL, NULL };
 
+
 // Initializes a tcb, the context further
 // be defined
 tcb * initializeTcb() {
@@ -28,20 +31,7 @@ tcb * initializeTcb() {
 	ret->waiter = NULL;
 	return ret;
 }
-// Create the tcb Queue
-tcbQueue * createQueue(tcb * thread) {
-	struct threadQueueNode * node = malloc(sizeof(struct threadQueueNode));
-	node->thread = thread;
-	node->previous = NULL;
-	node->next = NULL;
-	struct threadQueue queue = malloc (sizeof(struct threadQueue));
-	queue->front = node;
-	queue->rear = node;
-	queue->size = queue->size + 1;
-}
-	
-	
-	
+
 // Enqueue <thread> onto the queue
 void enqueueTcb(tcb * thread, struct tcbQueue * queue) {
 
@@ -60,25 +50,6 @@ void enqueueTcb(tcb * thread, struct tcbQueue * queue) {
 		queue->tcbQueueHead = node;
 	}
 }
-void enqueueTcb(tcb * thread, tcbQueue * queue) {
-
-	struct threadQueueNode * node = malloc(sizeof(struct threadQueueNode));
-	node->thread = thread;
-	node->previous = NULL;
-
-	if (queue->size == 0) {
-		node->next = NULL;
-		queue->front = node;
-		queue->rear = node;
-		queue->size = queue->size + 1;
-
-	} else {
-		node->next = queue->rear;
-		queue->rear->previous = node;
-		queue->rear = node;
-		queue->size = queue->size + 1;
-	}
-}
 
 // Dequeues a tcb, returns NULL if
 // no tcb
@@ -89,45 +60,14 @@ tcb * dequeueTcb(struct tcbQueue * queue) {
 
 	} else {
 		tcb * ret = queue->tcbQueueTail->thread;
+		
 		struct tcbQueueNode * newTail = queue->tcbQueueTail->previous;
+		if (newTail == NULL){
+			queue->tcbQueueHead = NULL;
+		}
 		free(queue->tcbQueueTail);
 		queue->tcbQueueTail = newTail;
 		return ret;
-	}
-}
-
-tcb * dequeueTcb(tcbQueue * queue) {
-
-	if (queue-> size == 0) {
-		return NULL;
-
-	}
-	else if(queue-> size == 1){
-		struct threadQueueNode * node = queue->front;
-		node->next = NULL;
-		node->previous = NULL;
-		queue->front = NULL;
-		queue->rear = NULL;
-		queue->size = 0;
-		return node->thread;
-	}
-	else if(queue-> size == 2){
-		struct threadQueueNode * node = queue->front;
-		node->previous->next = NULL;
-		queue->front = node->previous;
-		node->next = NULL;
-		node->previous = NULL;
-		queue->size = 1;
-		return threadQueueHead->thread;
-	}
-	else{
-		struct threadQueueNode * node = queue->front;
-		node->previous->next = NULL;
-		queue->front = node->previous;
-		node->next = NULL;
-		node->previous = NULL;
-		queue->size = queue->size - 1;
-		return node->thread;
 	}
 }
 
@@ -273,11 +213,17 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+	
 	return 0;
 };
 
 /* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+	// 
+	while(1){
+		while(mutex->lock == LOCKED);
+		if(__sync_lock_test_and_set(&(mutex->lock), 1) == UNLOCKED) {break};
+		}
 	return 0;
 };
 
