@@ -1,22 +1,20 @@
 #include "my_pthread_t.h"
+#include <stdio.h>
+#include<stdlib.h>
 
+my_pthread_mutex_t m; my_pthread_mutex_t n; my_pthread_mutex_t b;
+my_pthread_mutex_t total; my_pthread_mutex_t print;
 
-my_pthread_mutex_t m;
-my_pthread_mutex_t n;
-my_pthread_mutex_t b;
-my_pthread_mutex_t v;
-
-int total = 0;
-
+int sum = 0;
 void tester(int signum) {
 
-    my_pthread_mutex_lock(&m); my_pthread_mutex_lock(&n);    my_pthread_mutex_lock(&b); my_pthread_mutex_lock(&v);
-    
+    my_pthread_mutex_lock(&m);my_pthread_mutex_lock(&n);my_pthread_mutex_lock(&b);
 
     int i;
     for (i = 0; i < 999999; i++) {
         int l = (((i+1) *32)/65)*(((i+1) *32)/65);
         // printf("%d ", l);
+		sum = sum + l;
     }
     printf("in test %d, %d\n", signum, 0);
     for (i = 0; i < 999999; i++) {
@@ -35,32 +33,37 @@ void tester(int signum) {
     }
     printf("in test %d, %d\n", signum, 3);
 
-    my_pthread_mutex_unlock(&m);my_pthread_mutex_unlock(&n);    my_pthread_mutex_unlock(&b); my_pthread_mutex_unlock(&v);
-
-    my_pthread_mutex_lock(&m);
-
+    my_pthread_mutex_unlock(&b);
+	my_pthread_mutex_unlock(&n); my_pthread_mutex_unlock(&m);
+    
+	my_pthread_mutex_lock(&m);
     for (i = 0; i < 999999; i++) {
         int l = (((i+1) *32)/65)*(((i+1) *32)/65);
         // printf("%d ", l);
     }
-  
+    printf("in test %d, %d\n", signum, 4);
+    for (i = 0; i < 999999; i++) {
+        int l = (((i+1) *32)/65)*(((i+1) *32)/65);
+        // printf("%d ", sum);
+    }
     printf("in test %d, %d\n", signum, 8);
     
     my_pthread_mutex_unlock(&m);
 
     char * testString = malloc(10);
-    sprintf(testString, "test %d", signum);
+	fflush(stdin);
+	printf("test %d sum %d \n", signum, sum);
+	fflush(stdin);
+	sprintf(testString, "test %d sum %d", signum, sum);
 
     my_pthread_exit(testString);
 }
 
 
-// Temporary test method.
-
+// Temporyary test method.
 void test(int signum) {
 
-    my_pthread_mutex_lock(&m); my_pthread_mutex_lock(&n);    my_pthread_mutex_lock(&b); my_pthread_mutex_lock(&v);
-    
+    my_pthread_mutex_lock(&m);
 
     int i;
     for (i = 0; i < 999999; i++) {
@@ -84,10 +87,10 @@ void test(int signum) {
     }
     printf("in test %d, %d\n", signum, 3);
 
-    my_pthread_mutex_unlock(&m);my_pthread_mutex_unlock(&n);    my_pthread_mutex_unlock(&b); my_pthread_mutex_unlock(&v);
+    my_pthread_mutex_unlock(&m);
 
     my_pthread_mutex_lock(&m);
-
+    
     for (i = 0; i < 999999; i++) {
         int l = (((i+1) *32)/65)*(((i+1) *32)/65);
         // printf("%d ", l);
@@ -117,7 +120,10 @@ void test(int signum) {
     my_pthread_mutex_unlock(&m);
 
     char * testString = malloc(10);
-    sprintf(testString, "test %d", signum);
+    fflush(stdin);
+	printf("test %d sum %d", signum, sum);
+	fflush(stdin);
+	sprintf(testString, "test %d", signum);
 
     my_pthread_exit(testString);
 }
@@ -126,6 +132,9 @@ void test(int signum) {
 int main(int argc, char ** argv) {
 
     my_pthread_mutex_init(&m, NULL);
+	my_pthread_mutex_init(&n, NULL);
+	my_pthread_mutex_init(&b, NULL);
+
 
     my_pthread_t thread[6];
 
@@ -138,9 +147,8 @@ int main(int argc, char ** argv) {
     my_pthread_create(&(thread[3]), NULL, tester, 3);
     printf("4\n");
     my_pthread_create(&(thread[4]), NULL, test, 4);
-    printf("5\n");
-	my_pthread_create(&(thread[4]), NULL, test, 5);
-
+	printf("5\n");
+    my_pthread_create(&(thread[5]), NULL, test, 5);
 
 	printf("back in main\n");
 

@@ -20,8 +20,6 @@
 #define BASE_TIME_SLICE INTERRUPT_TIME
 
 #include "my_pthread_t.h"
-#define UNLOCKED 0
-#define LOCKED 1
 
 // Checks if library is properly initialized
 char initialized = 0;
@@ -53,7 +51,6 @@ void initializePQs() {
 	}
 }
 
-
 // Initializes a new tcb
 tcb * getNewTcb() {
 	tcb * ret = malloc(sizeof(tcb));
@@ -82,7 +79,7 @@ void enqueue(void * data, struct queue * queue) {
 		queue->head = node;
 	}
 }
-/*
+
 // Dequeues from <queue>
 void * dequeue(struct queue * queue) {
 
@@ -92,15 +89,12 @@ void * dequeue(struct queue * queue) {
 	} else {
 		void * data = queue->tail->data;
 		struct queueNode * newTail = queue->tail->previous;
-		if (newTail == NULL){
-			queue->tcbQueueHead = NULL; // because you do not want to free if another pointer is still pointing to it. if newtail is null, then it is the only one therefore head must also change it's pointer to null
-		}
 		free(queue->tail);
 		queue->tail = newTail;
 		return data;
 	}
 }
-*/
+
 // Removes <data> from <queue> and returns 1,
 // returns 0 if not found
 char removeFromQueue(void * data, struct queue * queue) {
@@ -329,7 +323,6 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
-
 	mutex->locker = NULL;
 	mutex->waiters = malloc(sizeof(struct queue));
 	mutex->waiters->head = NULL;
@@ -337,7 +330,7 @@ int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *
 	return 0;
 };
 
-/* acquire the mutex lock */
+/* aquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 
 	while (__sync_lock_test_and_set(&(mutex->guard), 1));
@@ -395,7 +388,6 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 
 		mutex->guard = 0;
 	}
-
 
 	return 0;
 };
