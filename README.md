@@ -1,10 +1,6 @@
 # Asst1: Adventures in Scheduling
 
-## API
-
-## Implementation
-
-### Scheduler
+## Scheduler
 
 The following three macros defined in `my_pthread.c` determine the scheduling behavior:
 
@@ -18,10 +14,39 @@ All new threads are initially given highest priority. When a running thread does
 
 When thread's exit, their return value is saved in their TCB. If a thread is waiting to join with the finished thread, it gets put back on the queue with the highest priority. If a there is no thread waiting to join with the finished thread, the return value stays in memory for later when another thread joins.
 
-### Mutexes
+## Mutexes
 
 When a mutex is initialized, a queue is allocated. When a thread tries to lock a locked mutex, it is placed in the mutex's queue to be later run when the mutex is unlocked. When a thread unlocks a mutex, the queue is checked. if there are threads waiting, the lock is passed on. If no threads are waiting, the mutex simply unlocks.
 
-#### Extra Credit A
+### Extra Credit A
 
 Every time a thread tries to lock a locked mutex, the priority of the thread is compared with the priority of the thread that currently has the lock. If the priority of the new thread is higher than the old one, the old thread inherits the priority of the new thread. When a mutex is being unlocked and the lock is being passed on to a waiting thread, the waiting thread inherits the priority of the unlocking thread.
+
+### Benchmark
+
+pthread:
+
+    -sh-4.2$ ./parallelCal 6
+    running time: 667 micro-seconds
+    sum is: 83842816
+    verified sum is: 83842816
+
+    -sh-4.2$ ./parallelCal 1
+    running time: 2097 micro-seconds
+    sum is: 83842816
+    verified sum is: 83842816
+    -sh-4.2$
+
+my_pthread:
+
+    -sh-4.2$ ./parallelCal 6
+    running time: 2098 micro-seconds
+    sum is: 83842816
+    verified sum is: 83842816
+
+    -sh-4.2$ ./parallelCal 1
+    running time: 2099 micro-seconds
+    sum is: 83842816
+    verified sum is: 83842816
+
+The Unix pthread library takes advantage of kernel level thread allowing for true parallelization. That is why the pthread library with 6 threads goes so fast. My_pthread library runs basically the same time with 1 or 6 threads or 1 thread in the pthread library. This is because it is still running on the same core.

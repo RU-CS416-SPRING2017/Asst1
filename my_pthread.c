@@ -13,7 +13,7 @@
 // Number of priority queues
 #define NUM_PRIORITY_LVLS 4
 // Interval time to run scheduler
-#define INTERRUPT_TIME 25
+#define INTERRUPT_TIME 25000
 // Time slice for highest priority, each
 // priority level has a time slice x2 of
 // the priority level above it
