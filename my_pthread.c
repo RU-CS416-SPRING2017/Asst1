@@ -2,9 +2,9 @@
 // Author:	Yujie REN
 // Date:	09/23/2017
 
-// name:
-// username of iLab:
-// iLab Server:
+// name: Ammaar Muhammad Iqbal
+// username of iLab: ami76 rbp61
+// iLab Server: grep.cs.rutgers.edu
 
 /////////////////////////////////////////
 // All macro times are in microseconds //
