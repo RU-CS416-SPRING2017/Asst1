@@ -375,7 +375,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 
 		// If no thread is waiting on the lock then release it
 		// otherwise put the waiter on the queue with the priority
-		// level of the unloker aka the highest priority level of
+		// level of the unlocker aka the highest priority level of
 		// all the waiters for the priority inversion
 		if (waiter == NULL) {
 			mutex->locker = NULL;
