@@ -53,16 +53,9 @@ void initializePQs() {
 	}
 }
 
-<<<<<<< HEAD
 
-// Initializes a tcb, the context must further
-
-// be defined
-tcb * getTcb() {
-=======
 // Initializes a new tcb
 tcb * getNewTcb() {
->>>>>>> master
 	tcb * ret = malloc(sizeof(tcb));
 	ret->done = 0;
 	ret->retVal = NULL;
@@ -89,7 +82,7 @@ void enqueue(void * data, struct queue * queue) {
 		queue->head = node;
 	}
 }
-
+/*
 // Dequeues from <queue>
 void * dequeue(struct queue * queue) {
 
@@ -107,7 +100,7 @@ void * dequeue(struct queue * queue) {
 		return data;
 	}
 }
-
+*/
 // Removes <data> from <queue> and returns 1,
 // returns 0 if not found
 char removeFromQueue(void * data, struct queue * queue) {
@@ -336,39 +329,16 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
-<<<<<<< HEAD
-	// UNLOCKED -> lock is available LOCKED -> lock is unavailable 
-	mutex->lock = UNLOCKED;
-	mutex->guard = UNLOCKED;
-	mutex->
-=======
+
 	mutex->locker = NULL;
 	mutex->waiters = malloc(sizeof(struct queue));
 	mutex->waiters->head = NULL;
 	mutex->waiters->tail = NULL;
->>>>>>> master
 	return 0;
 };
 
 /* acquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
-<<<<<<< HEAD
-	// need thread information
-/*	while(1){
-		while(mutex->lock == LOCKED);
-		if(__sync_lock_test_and_set(&(mutex->lock), 1) == UNLOCKED) {break};
-	}
-	*/
-	while(__sync_lock_test_and_set(&(mutex->guard), 1) == LOCKED);
-	if (mutex->lock == UNLOCKED) {
-		mutex->lock = LOCKED; // lock is acquired
-		mutex->guard = UNLOCKED;
-	} else {
-		enqueue(mutex->waitQueue, &currentTcb); //need thread info
-		mutex->guard = UNLOCKED;
-		futex_wait(mutex,val); //waits until value changes //value has to equal value at address mutex
-	}
-=======
 
 	while (__sync_lock_test_and_set(&(mutex->guard), 1));
 
@@ -398,21 +368,11 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 		mutex->guard = 0;
 	}
 
->>>>>>> master
 	return 0;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
-<<<<<<< HEAD
-	while(__sync_lock_test_and_set(&(mutex->guard), 1) == LOCKED);
-	if((mutex->waitQueue->)){
-		mutex->lock = UNLOCKED;
-	} else{
-		futex_wake(dequeue(mutex->waitQueue)); //futex wake thread at this address
-	}
-	mutex->guard = UNLOCKED;
-=======
 
 	if (mutex->locker == currentTcb) {
 
@@ -436,7 +396,7 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 		mutex->guard = 0;
 	}
 
->>>>>>> master
+
 	return 0;
 };
 
