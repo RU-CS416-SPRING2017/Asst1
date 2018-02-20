@@ -116,6 +116,8 @@ char removeFromQueue(void * data, struct queue * queue) {
 			free(trav);
 			return 1;
 		}
+
+		trav = trav->previous;
 	}
 
 	return 0;
