@@ -21,7 +21,8 @@
 #include <sys/time.h>
 #include <signal.h>
 
-typedef uint my_pthread_t;
+// typedef uint my_pthread_t;
+typedef void * my_pthread_t;
 
 typedef struct threadControlBlock {
 	/* add something here */

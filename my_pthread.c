@@ -206,7 +206,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		exitContext.uc_link = NULL;
 		exitContext.uc_stack.ss_size = TEMP_SIZE;
 		exitContext.uc_stack.ss_sp = exitStack;
-		makecontext(&exitContext, my_pthread_exit, 1, NULL);
+		makecontext(&exitContext, (void (*)(void)) my_pthread_exit, 1, NULL);
 
 		// Catch itimer signal
 		signal(SIGVTALRM, schedule);
@@ -234,7 +234,7 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	newTcb->context.uc_link = &exitContext;
 	newTcb->context.uc_stack.ss_size = TEMP_SIZE;
 	newTcb->context.uc_stack.ss_sp = newThreadStack;
-	makecontext(&(newTcb->context), function, 1, arg);
+	makecontext(&(newTcb->context), (void (*)(void)) function, 1, arg);
 	*thread = newTcb;
 	enqueue(newTcb, &(PQs[0].queue));
 
