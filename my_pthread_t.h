@@ -21,7 +21,8 @@
 #include <sys/time.h>
 #include <signal.h>
 
-typedef uint my_pthread_t;
+// typedef uint my_pthread_t;
+typedef void * my_pthread_t;
 
 typedef struct threadControlBlock {
 	/* add something here */
@@ -31,15 +32,21 @@ typedef struct threadControlBlock {
 	struct threadControlBlock * waiter;
 	int priorityLevel;
 	struct timeval start;
-	suseconds_t totalRunTime;
 } tcb; 
 
 /* mutex struct definition */
 typedef struct my_pthread_mutex_t {
+<<<<<<< HEAD
 	int lock;
 	int guard;
 	struct queue * waitQueue;
 	
+=======
+	/* add something here */
+	char guard;
+	tcb * locker;
+	struct queue * waiters;
+>>>>>>> master
 } my_pthread_mutex_t;
 
 /* define your data structures here: */

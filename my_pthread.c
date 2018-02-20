@@ -45,18 +45,21 @@ void initializePQs() {
 	}
 }
 
+<<<<<<< HEAD
 
 // Initializes a tcb, the context must further
 
 // be defined
 tcb * getTcb() {
+=======
+// Initializes a new tcb
+tcb * getNewTcb() {
+>>>>>>> master
 	tcb * ret = malloc(sizeof(tcb));
 	ret->done = 0;
 	ret->retVal = NULL;
 	ret->waiter = NULL;
 	ret->priorityLevel = 0;
-	gettimeofday(&(ret->start), NULL);
-	ret->totalRunTime = 0;
 	return ret;
 }
 
@@ -97,6 +100,32 @@ void * dequeue(struct queue * queue) {
 	}
 }
 
+// Removes <data> from <queue> and returns 1,
+// returns 0 if not found
+char removeFromQueue(void * data, struct queue * queue) {
+
+	struct queueNode * trav = queue->tail;
+
+	while (trav != NULL) {
+
+		if (trav->data == data) {
+
+			if (trav->next != NULL) {
+				trav->next->previous = trav->previous;
+			}
+
+			if (trav->previous != NULL) {
+				trav->previous->next = trav->next;
+			}
+
+			free(trav);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 // Returns the next tcb and removes it from the queue,
 // NULL if no threads in queue
 tcb * getNextTcb() {
@@ -108,54 +137,52 @@ tcb * getNextTcb() {
 	return NULL;
 }
 
+// Schedules threads
 void schedule(int signum) {
 
 	// Only run if scheduler isn't blocked
-	if (!block) {
-
-		// Block the scheduler
-		block = 1;
+	if (!__sync_val_compare_and_swap(&block, 0, 1)) {
 
 		// Get the runtime of the previous thread
 		struct timeval now;
 		gettimeofday(&now, NULL);
-		suseconds_t previousTcbRunTime = 0;
+		suseconds_t previousRunTime = 0;
 		unsigned int previousTimeSlice = 0;
 		if (currentTcb != NULL) {
-			previousTcbRunTime = getElapsedTime(&(currentTcb->start), &now);
+			previousRunTime = getElapsedTime(&(currentTcb->start), &now);
 			previousTimeSlice = PQs[currentTcb->priorityLevel].timeSlice;
 		}
 
-		// If thread ran long enough, context switch
-		if (previousTcbRunTime >= previousTimeSlice) {
+		// If thread ran long enough or no previous thread, context switch
+		if (previousRunTime >= previousTimeSlice) {
 
 			tcb * nextTcb = getNextTcb();
 
-			// Switch context if there was a thread in
-			// the queue. Unblock the scheduler.
+			// If there is a thread in the queue, schedule it next
 			if (nextTcb != NULL) {
 
 				tcb * previousTcb = currentTcb;
 				currentTcb = nextTcb;
-
-				// Set start time for the next thread
-				gettimeofday(&(currentTcb->start), NULL);
-				
-				// If <previousTcb> is NULL then setcontext to the
-				// <newTcb>, else swap it with <previousTcb>
+					
+				// Run the next thread, and save the previous thread
+				// if there is one
 				if (previousTcb == NULL) { 
+					gettimeofday(&(currentTcb->start), NULL);
 					block = 0;
 					setcontext(&(currentTcb->context));
 
 				} else {
 
-					// Decrease the priority level of <previousTcb> if not already
-					// at the lowest priority
+					// Decrease the priority level of previous thread if not already
+					// at the lowest priority, else increase to highest priority
+					// as the maintenance cycle
 					if (previousTcb->priorityLevel < (NUM_PRIORITY_LVLS - 1)) {
 						(previousTcb->priorityLevel)++;
-					}
+					} else { previousTcb->priorityLevel = 0; }
 
+					// Swap the threads
 					enqueue(previousTcb, &(PQs[previousTcb->priorityLevel].queue));
+					gettimeofday(&(currentTcb->start), NULL);
 					block = 0;
 					swapcontext(&(previousTcb->context), &(currentTcb->context));
 				}
@@ -172,17 +199,11 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 	block = 1;
 
 	// This block only runs on the first call to
-	// my_pthread_create, setting the itimer and
-	// exitContext
+	// my_pthread_create
 	if (!initialized) {
 
+		// Initialize the priority queues
 		initializePQs();
-
-		// Cretae tcb for first caller
-		currentTcb = getTcb();
-
-		// Catch itimer signal
-		signal(SIGVTALRM, schedule);
 
 		// Save pthread_exit context
 		getcontext(&exitContext);
@@ -190,7 +211,10 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		exitContext.uc_link = NULL;
 		exitContext.uc_stack.ss_size = TEMP_SIZE;
 		exitContext.uc_stack.ss_sp = exitStack;
-		makecontext(&exitContext, my_pthread_exit, 1, NULL);
+		makecontext(&exitContext, (void (*)(void)) my_pthread_exit, 1, NULL);
+
+		// Catch itimer signal
+		signal(SIGVTALRM, schedule);
 
 		// Start itimer
 		struct itimerval * timer = malloc(sizeof(struct itimerval));
@@ -200,19 +224,22 @@ int my_pthread_create(my_pthread_t * thread, pthread_attr_t * attr, void *(*func
 		timer->it_interval.tv_usec = INTERRUPT_TIME;
 		setitimer(ITIMER_VIRTUAL, timer, NULL);
 
+		// Cretae tcb for first caller
+		currentTcb = getNewTcb();
+
 		initialized = 1;
 	}
 
 	block = 0;
 
-	// Create the new thread
-	tcb * newTcb = getTcb();
+	// Create the new thread and add it to high priority
+	tcb * newTcb = getNewTcb();
 	getcontext(&(newTcb->context));
 	void * newThreadStack = malloc(TEMP_SIZE);
 	newTcb->context.uc_link = &exitContext;
 	newTcb->context.uc_stack.ss_size = TEMP_SIZE;
 	newTcb->context.uc_stack.ss_sp = newThreadStack;
-	makecontext(&(newTcb->context), function, 1, arg);
+	makecontext(&(newTcb->context), (void (*)(void)) function, 1, arg);
 	*thread = newTcb;
 	enqueue(newTcb, &(PQs[0].queue));
 
@@ -226,14 +253,12 @@ int my_pthread_yield() {
 
 	tcb * nextTcb = getNextTcb();
 	
+	// If there is a thread in the queue, run that and save the
+	// yielding thread with the same priority it had
 	if (nextTcb != NULL) {
-
 		tcb * previousTcb = currentTcb;
 		currentTcb = nextTcb;
-
-		// Set start time for the next thread
 		gettimeofday(&(currentTcb->start), NULL);
-
 		enqueue(previousTcb, &(PQs[previousTcb->priorityLevel].queue));
 		block = 0;
 		swapcontext(&(previousTcb->context), &(currentTcb->context));
@@ -248,6 +273,8 @@ void my_pthread_exit(void *value_ptr) {
 
 	block = 1;
 
+	// Set the exiting thread to done, and save its
+	// return value
 	currentTcb->done = 1;
 	currentTcb->retVal = value_ptr;
 
@@ -275,9 +302,10 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 
 	// If the the joining thread isn't done,
 	// refrence the waiting (this) thread in
-	// the joining thread's tcb and start
-	// waiting
+	// the joining thread's tcb and wait
 	if (!(joining->done)) {
+
+		// Swap the waiter with the next thread
 		joining->waiter = currentTcb;
 		currentTcb = getNextTcb();
 		gettimeofday(&(currentTcb->start), NULL);
@@ -291,20 +319,32 @@ int my_pthread_join(my_pthread_t thread, void **value_ptr) {
 	// joining thread's return value.
 	if (value_ptr != NULL) { *value_ptr = joining->retVal; }
 
+	// Release ressources of the joining thread
+	free(joining->context.uc_stack.ss_sp);
+	free(joining);
+
 	return 0;
 };
 
 /* initial the mutex lock */
 int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr) {
+<<<<<<< HEAD
 	// UNLOCKED -> lock is available LOCKED -> lock is unavailable 
 	mutex->lock = UNLOCKED;
 	mutex->guard = UNLOCKED;
 	mutex->
+=======
+	mutex->locker = NULL;
+	mutex->waiters = malloc(sizeof(struct queue));
+	mutex->waiters->head = NULL;
+	mutex->waiters->tail = NULL;
+>>>>>>> master
 	return 0;
 };
 
 /* acquire the mutex lock */
 int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
+<<<<<<< HEAD
 	// need thread information
 /*	while(1){
 		while(mutex->lock == LOCKED);
@@ -320,11 +360,43 @@ int my_pthread_mutex_lock(my_pthread_mutex_t *mutex) {
 		mutex->guard = UNLOCKED;
 		futex_wait(mutex,val); //waits until value changes //value has to equal value at address mutex
 	}
+=======
+
+	while (__sync_lock_test_and_set(&(mutex->guard), 1));
+
+	if (mutex->locker != NULL) {
+
+		// Swap the locked waiter with the next thread
+		block = 1;
+		tcb * previousTcb = currentTcb;
+		currentTcb = getNextTcb();
+		enqueue(previousTcb, mutex->waiters);
+		mutex->guard = 0;
+
+		// Increases priority of the locker to the priority of the waiter
+		// if the waiter's priority is higher for priority inversion
+		if (previousTcb->priorityLevel > mutex->locker->priorityLevel) {
+			removeFromQueue(mutex->locker, &(PQs[mutex->locker->priorityLevel].queue));
+			mutex->locker->priorityLevel = previousTcb->priorityLevel;
+			enqueue(mutex->locker, &(PQs[mutex->locker->priorityLevel].queue));
+		}
+
+		gettimeofday(&(currentTcb->start), NULL);
+		block = 0;
+		swapcontext(&(previousTcb->context), &(currentTcb->context));
+
+	} else {
+		mutex->locker = currentTcb;
+		mutex->guard = 0;
+	}
+
+>>>>>>> master
 	return 0;
 };
 
 /* release the mutex lock */
 int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
+<<<<<<< HEAD
 	while(__sync_lock_test_and_set(&(mutex->guard), 1) == LOCKED);
 	if((mutex->waitQueue->)){
 		mutex->lock = UNLOCKED;
@@ -332,10 +404,36 @@ int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex) {
 		futex_wake(dequeue(mutex->waitQueue)); //futex wake thread at this address
 	}
 	mutex->guard = UNLOCKED;
+=======
+
+	if (mutex->locker == currentTcb) {
+
+		while (__sync_lock_test_and_set(&(mutex->guard), 1));
+
+		tcb * waiter = dequeue(mutex->waiters);
+
+		// If no thread is waiting on the lock then release it
+		// otherwise put the waiter on the queue with the priority
+		// level of the unloker aka the highest priority level of
+		// all the waiters for the priority inversion
+		if (waiter == NULL) {
+			mutex->locker = NULL;
+
+		} else {
+			waiter->priorityLevel = mutex->locker->priorityLevel;
+			mutex->locker = waiter;
+			enqueue(waiter, &(PQs[waiter->priorityLevel].queue));
+		}
+
+		mutex->guard = 0;
+	}
+
+>>>>>>> master
 	return 0;
 };
 
 /* destroy the mutex */
 int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex) {
+	free(mutex->waiters);
 	return 0;
 };
