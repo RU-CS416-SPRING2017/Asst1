@@ -6,10 +6,18 @@
 // username of iLab:
 // iLab Server:
 
+/////////////////////////////////////////
+// All macro times are in microseconds //
+/////////////////////////////////////////
 #define TEMP_SIZE 4096
-#define INTERRUPT_TIME 25 // In microseconds
-#define BASE_TIME_SLICE INTERRUPT_TIME // In microseconds
+// Number of priority queues
 #define NUM_PRIORITY_LVLS 4
+// Interval time to run scheduler
+#define INTERRUPT_TIME 25
+// Time slice for highest priority, each
+// priority level has a time slice x2 of
+// the priority level above it
+#define BASE_TIME_SLICE INTERRUPT_TIME
 
 #include "my_pthread_t.h"
 #define UNLOCKED 0
@@ -26,7 +34,7 @@ tcb * currentTcb = NULL;
 // High priority queue
 struct priorityQueue PQs[NUM_PRIORITY_LVLS];
 
-// Returns the elapsed time
+// Returns the time between <start> and <end>
 suseconds_t getElapsedTime(struct timeval * start, struct timeval * end) {
 	time_t seconds = end->tv_sec - start->tv_sec;
 	suseconds_t microseconds = end->tv_usec - start->tv_usec;
@@ -34,7 +42,7 @@ suseconds_t getElapsedTime(struct timeval * start, struct timeval * end) {
 	else { return (seconds * 1000000) + microseconds; }
 }
 
-// Initializes <priorityQueue>
+// Initializes <PQs>
 void initializePQs() {
 	int i;
 	for (i = 0; i < NUM_PRIORITY_LVLS; i++) {
